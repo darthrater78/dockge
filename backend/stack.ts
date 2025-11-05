@@ -98,6 +98,7 @@ export class Stack {
             tags: [],
             isManagedByDockge: this.isManagedByDockge,
             composeFileName: this._composeFileName,
+            composeOverrideFileName: this._composeOverrideFileName,
             endpoint,
         };
     }
@@ -179,6 +180,11 @@ export class Stack {
             }
         }
         return this._composeOverrideYAML;
+    }
+
+    // Expose the chosen override file name to any server-side consumer if needed
+    get composeOverrideFileName() : string {
+        return this._composeOverrideFileName;
     }
 
     get path() : string {
