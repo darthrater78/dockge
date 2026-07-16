@@ -61,7 +61,7 @@ mkdir -p /opt/stacks /opt/dockge
 cd /opt/dockge
 
 # Download the compose.yaml
-curl https://raw.githubusercontent.com/louislam/dockge/master/compose.yaml --output compose.yaml
+curl https://raw.githubusercontent.com/darthrater78/dockge/merged-features/compose.yaml --output compose.yaml
 
 # Start the server
 docker compose up -d
@@ -104,7 +104,7 @@ compose:
 ```
 services:
   dockge:
-    image: louislam/dockge:1
+    image: ghcr.io/darthrater78/dockge:latest
     restart: unless-stopped
     ports:
       # Host Port:Container Port

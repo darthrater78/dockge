@@ -1,6 +1,6 @@
 services:
   dockge:
-    image: louislam/dockge:1
+    image: ghcr.io/darthrater78/dockge:latest
     restart: unless-stopped
     ports:
       # Host Port : Container Port
@@ -20,3 +20,6 @@ services:
     environment:
       # Tell Dockge where is your stacks directory
       - DOCKGE_STACKS_DIR=/opt/stacks
+      # Optional — only if you want CAPTCHA on login:
+      # - TURNSTILE_SITE_KEY=<your Turnstile site key>
+      # - TURNSTILE_SECRET_KEY=<your Turnstile secret key>
