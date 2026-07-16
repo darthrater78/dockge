@@ -189,7 +189,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 await stack.update(socket);
                 callbackResult({
                     ok: true,
-                    msg: `Updated ${stackName}`,
+                    msg: "Updated",
                     msgi18n: true,
                 }, callback);
                 server.sendStackList();
