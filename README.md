@@ -22,6 +22,9 @@ View Video: https://youtu.be/AWAlOQeNpgU?t=48
 - 🕷️ (1.4.0 🆕) Multiple agents support - You can manage multiple stacks from different Docker hosts in one single interface
 - 🏪 Convert `docker run ...` commands into `compose.yaml`
 - 📙 File based structure - Dockge won't kidnap your compose files, they are stored on your drive as usual. You can interact with them using normal `docker compose` commands
+- 🧩 (1.5.1 🆕) Compose override editor - Edit `compose.override.yaml` alongside your main compose file, when present
+- 🔐 (1.5.1 🆕) Optional Cloudflare Turnstile CAPTCHA on login
+- 🔄 (1.5.1 🆕) "Update All" button to pull and update every stack at once
 
 <img src="https://github.com/louislam/dockge/assets/1336778/cc071864-592e-4909-b73a-343a57494002" width=300 />
 
@@ -133,6 +136,30 @@ services:
 cd /opt/dockge
 docker compose pull && docker compose up -d
 ```
+
+## Optional: Cloudflare Turnstile CAPTCHA
+
+To require a CAPTCHA challenge on the login page, set both of the following environment variables on the Dockge container. If either is unset, CAPTCHA verification is skipped.
+
+```
+      - TURNSTILE_SITE_KEY=<your Turnstile site key>
+      - TURNSTILE_SECRET_KEY=<your Turnstile secret key>
+```
+
+Keys can be created in the [Cloudflare dashboard](https://developers.cloudflare.com/turnstile/get-started/).
+
+## Version History
+
+### 1.5.1
+- Added Compose override editor (`compose.override.yaml` support)
+- Added optional Cloudflare Turnstile CAPTCHA on login
+- Added "Update All" button to StackList
+- Fixed: Update All button crashing due to undefined state reference
+- Fixed: post-setup login callback not firing
+- Fixed: potential crash on malformed login payload when Turnstile is enabled
+- Fixed: Turnstile script load failure permanently blocking login
+- Fixed: i18n lookup breaking on the stack update toast message
+- Fixed: duplicate Turnstile widgets on repeated Login component mounts
 
 ## Screenshots
 

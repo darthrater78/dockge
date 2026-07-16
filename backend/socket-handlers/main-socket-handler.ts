@@ -23,7 +23,7 @@ import path from "path";
 
 async function verifyTurnstileToken(token: string, clientIP: string, secretKey: string): Promise<boolean> {
     if (!token) {
-        console.error("Token is not provided.");
+        log.warn("auth", "Turnstile token is not provided.");
         return false;
     }
 
@@ -41,12 +41,11 @@ async function verifyTurnstileToken(token: string, clientIP: string, secretKey: 
     });
     const outcome = await result.json();
     if (outcome && outcome.success) {
-        console.log("Token verified successfully:", outcome);
+        log.info("auth", "Turnstile token verified successfully.");
         return true;
     }
-    console.error("Token verification failed:", outcome["error-codes"]);
+    log.warn("auth", "Turnstile token verification failed: " + JSON.stringify(outcome["error-codes"]));
     return false;
-
 }
 
 export class MainSocketHandler extends SocketHandler {
@@ -94,7 +93,6 @@ export class MainSocketHandler extends SocketHandler {
         socket.on("getTurnstileSiteKey", async (callback) => {
             try {
                 const siteKey = process.env.TURNSTILE_SITE_KEY || "";
-                console.log("Turnstile site key from env:", siteKey);
                 // Checking
                 if (typeof callback !== "function") {
                     return;
@@ -185,21 +183,6 @@ export class MainSocketHandler extends SocketHandler {
 
             log.info("auth", `Login by username + password. IP=${clientIP}`);
 
-            const siteKey = process.env.TURNSTILE_SITE_KEY || "";
-            const secretKey = process.env.TURNSTILE_SECRET_KEY || "";
-            if (siteKey && secretKey) {
-                // Verify Turnstile token
-                const isCaptchaValid = await verifyTurnstileToken(data.captchaToken, clientIP, secretKey);
-                if (!isCaptchaValid) {
-                    return callback({
-                        ok: false,
-                        msg: "Invalid CAPTCHA"
-                    });
-                }
-            } else {
-                log.warn("auth", "Turnstile keys are not configured. Skipping CAPTCHA verification.");
-            }
-
             // Checking
             if (typeof callback !== "function") {
                 return;
@@ -207,6 +190,18 @@ export class MainSocketHandler extends SocketHandler {
 
             if (!data) {
                 return;
+            }
+
+            const siteKey = process.env.TURNSTILE_SITE_KEY || "";
+            const secretKey = process.env.TURNSTILE_SECRET_KEY || "";
+            if (siteKey && secretKey) {
+                const isCaptchaValid = await verifyTurnstileToken(data.captchaToken, clientIP, secretKey);
+                if (!isCaptchaValid) {
+                    return callback({
+                        ok: false,
+                        msg: "Invalid CAPTCHA"
+                    });
+                }
             }
 
             // Login Rate Limit

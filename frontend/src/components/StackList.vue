@@ -23,7 +23,7 @@
                     </form>
                 </div>
                 <div class="update-all-wrapper">
-                    <button class="btn btn-primary" :disabled="processing || Object.keys(sortedStackList).length === 0" @click="updateAll">
+                    <button class="btn btn-primary" :disabled="updatingAll || agentStackList.length === 0" @click="updateAll">
                         <font-awesome-icon icon="fa-cloud-arrow-down me-1" />
                         {{ $t("updateAll") }}
                     </button>
@@ -113,6 +113,7 @@ export default {
                 tags: null,
             },
             closedAgents: new Map(),
+            updatingAll: false,
         };
     },
     computed: {
@@ -390,14 +391,22 @@ export default {
             this.cancelSelectMode();
         },
         updateAll() {
-            console.log("updateAll");
-            console.log(this.sortedStackList);
-            for (let stack of this.sortedStackList) {
-                console.log(stack);
-                this.$root.emitAgent(stack.endpoint, "updateStack", stack.name, (res) => {
-                    this.processing = false;
-                    this.$root.toastRes(res);
-                });
+            this.updatingAll = true;
+            let pending = 0;
+            for (const agent of this.agentStackList) {
+                for (const stack of agent.stacks) {
+                    pending++;
+                    this.$root.emitAgent(agent.endpoint, "updateStack", stack.name, (res) => {
+                        this.$root.toastRes(res);
+                        pending--;
+                        if (pending <= 0) {
+                            this.updatingAll = false;
+                        }
+                    });
+                }
+            }
+            if (pending === 0) {
+                this.updatingAll = false;
             }
         },
     },
