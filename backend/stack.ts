@@ -416,6 +416,9 @@ export class Stack {
     }
 
     static async getStack(server: DockgeServer, stackName: string, skipFSOperations = false) : Promise<Stack> {
+        if (!/^[a-z0-9][a-z0-9_-]*$/.test(stackName)) {
+            throw new ValidationError("Invalid stack name");
+        }
         let dir = path.join(server.stacksDir, stackName);
 
         if (!skipFSOperations) {

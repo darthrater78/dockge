@@ -406,17 +406,21 @@ export default {
             }
 
             let urls = [];
+            const allowedProtocols = ["http:", "https:"];
             for (const url of this.envsubstJSONConfig["x-dockge"].urls) {
                 let display;
                 try {
                     let obj = new URL(url);
+                    if (!allowedProtocols.includes(obj.protocol)) {
+                        continue;
+                    }
                     let pathname = obj.pathname;
                     if (pathname === "/") {
                         pathname = "";
                     }
                     display = obj.host + pathname + obj.search;
                 } catch (e) {
-                    display = url;
+                    continue;
                 }
 
                 urls.push({

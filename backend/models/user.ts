@@ -25,7 +25,7 @@ export class User extends BeanModel {
      */
     async resetPassword(newPassword : string) {
         await User.resetPassword(this.id, newPassword);
-        this.password = newPassword;
+        this.password = generatePasswordHash(newPassword);
     }
 
     /**
@@ -38,7 +38,7 @@ export class User extends BeanModel {
         return jwt.sign({
             username: user.username,
             h: shake256(user.password, SHAKE256_LENGTH),
-        }, jwtSecret);
+        }, jwtSecret, { expiresIn: "30d" });
     }
 
 }
