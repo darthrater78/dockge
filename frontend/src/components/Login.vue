@@ -78,7 +78,6 @@ export default {
             this.processing = true;
 
             if (this.siteKey && !this.captchaToken) {
-                console.error("CAPTCHA token is missing or invalid.");
                 this.processing = false;
                 this.res = { ok: false,
                     msg: "Invalid CAPTCHA!" };
@@ -101,55 +100,46 @@ export default {
 
         resetTurnstile() {
             if (window.turnstile && this.$refs.turnstile) {
-                console.log("Resetting Turnstile widget...");
                 window.turnstile.reset(this.$refs.turnstile);
-                this.captchaToken = ""; // Clear the old token
+                this.captchaToken = "";
             }
         },
 
         getTurnstileSiteKey() {
             this.$root.getTurnstileSiteKey((res) => {
-                if (res.ok) {
+                if (res.ok && res.siteKey) {
                     this.siteKey = res.siteKey;
-                    if (this.siteKey) {
-                        console.log("Turnstile site key is provided. Loading Turnstile script...");
-                        const script = document.createElement("script");
-                        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-                        script.async = true;
-                        script.defer = true;
-                        script.onload = () => {
-                            console.log("Turnstile script loaded successfully.");
-                            this.initializeTurnstile();
-                        };
-                        script.onerror = () => {
-                            console.error("Failed to load Turnstile script.");
-                        };
-                        document.head.appendChild(script);
-                        console.log("Turnstile script loaded...");
-                    } else {
-                        console.warn("Turnstile site key is not provided. Widget will not be rendered.");
+                    if (window.turnstile) {
+                        this.initializeTurnstile();
+                        return;
                     }
-
-                } else {
-                    console.error("Failed to fetch Turnstile site key from socket:", res.msg);
+                    if (document.querySelector("script[src*=\"turnstile\"]")) {
+                        return;
+                    }
+                    const script = document.createElement("script");
+                    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+                    script.async = true;
+                    script.defer = true;
+                    script.onload = () => {
+                        this.initializeTurnstile();
+                    };
+                    script.onerror = () => {
+                        this.siteKey = "";
+                    };
+                    document.head.appendChild(script);
                 }
             });
         },
 
-        /**
-         * Initialize the Turnstile widget
-         */
         initializeTurnstile() {
-            if (window.turnstile) {
-                console.log("Initializing Turnstile widget...");
+            if (window.turnstile && this.$refs.turnstile) {
                 window.turnstile.render(this.$refs.turnstile, {
                     sitekey: this.siteKey,
                     callback: (token) => {
-                        this.captchaToken = token; // Save the token
+                        this.captchaToken = token;
                     },
                     "error-callback": () => {
-                        console.error("Turnstile error occurred");
-                        this.captchaToken = null;
+                        this.captchaToken = "";
                     },
                 });
             }

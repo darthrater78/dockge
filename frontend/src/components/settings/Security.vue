@@ -99,11 +99,13 @@
                     <strong>{{ $t('disableAuth') }}</strong>
                 </template>
             </i18n-t>
+
             <i18n-t keypath="disableauth.message2" tag="p">
                 <template #scenarios>
                     <strong>{{ $t('scenarios') }}</strong>
                 </template>
             </i18n-t>
+
             <p>{{ $t("Please use this option carefully!") }}</p>
 
             <div class="mb-3">

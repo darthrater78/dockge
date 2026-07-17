@@ -1,7 +1,7 @@
 import { AgentSocketHandler } from "../agent-socket-handler";
 import { DockgeServer } from "../dockge-server";
 import { callbackError, callbackResult, checkLogin, DockgeSocket, ValidationError } from "../util-server";
-import { DeleteOptions, Stack } from "../stack";
+import { Stack } from "../stack";
 import { AgentSocket } from "../../common/agent-socket";
 
 export class DockerSocketHandler extends AgentSocketHandler {
@@ -40,7 +40,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
             }
         });
 
-        agentSocket.on("deleteStack", async (name : unknown, deleteOptions: unknown, callback) => {
+        agentSocket.on("deleteStack", async (name : unknown, callback) => {
             try {
                 checkLogin(socket);
                 if (typeof(name) !== "string") {
@@ -49,7 +49,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 const stack = await Stack.getStack(server, name);
 
                 try {
-                    await stack.delete(socket, deleteOptions as DeleteOptions);
+                    await stack.delete(socket);
                 } catch (e) {
                     server.sendStackList();
                     throw e;
@@ -62,25 +62,6 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     msgi18n: true,
                 }, callback);
 
-            } catch (e) {
-                callbackError(e, callback);
-            }
-        });
-
-        agentSocket.on("forceDeleteStack", async (name : unknown, callback) => {
-            try {
-                checkLogin(socket);
-                if (typeof(name) !== "string") {
-                    throw new ValidationError("Name must be a string");
-                }
-                const stack = await Stack.getStack(server, name);
-                await stack.forceDelete(socket);
-                server.sendStackList();
-                callbackResult({
-                    ok: true,
-                    msg: "Deleted",
-                    msgi18n: true,
-                }, callback);
             } catch (e) {
                 callbackError(e, callback);
             }
@@ -208,7 +189,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 await stack.update(socket);
                 callbackResult({
                     ok: true,
-                    msg: `Updated ${stackName}`,
+                    msg: "Updated",
                     msgi18n: true,
                 }, callback);
                 server.sendStackList();
@@ -269,6 +250,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     ok: true,
                     dockerStats,
                 }, callback);
+                server.sendStackList();
             } catch (e) {
                 callbackError(e, callback);
             }
@@ -375,3 +357,4 @@ export class DockerSocketHandler extends AgentSocketHandler {
     }
 
 }
+

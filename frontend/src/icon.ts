@@ -55,10 +55,8 @@ import {
     faTerminal, faWarehouse, faHome, faRocket,
     faRotate,
     faCloudArrowDown, faArrowsRotate,
-    // keep both the chevron circle icons and the expand icon
     faChevronCircleRight,
     faChevronCircleDown,
-    faExpand,
 } from "@fortawesome/free-solid-svg-icons";
 
 library.add(
@@ -117,7 +115,7 @@ library.add(
     faArrowsRotate,
     faChevronCircleRight,
     faChevronCircleDown,
-    faExpand,
 );
 
 export { FontAwesomeIcon };
+

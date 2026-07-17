@@ -9,7 +9,7 @@
                 <div v-if="!isEditMode">
                     <span class="badge me-1" :class="bgStyle">{{ status }}</span>
 
-                    <a v-for="port in envsubstService.ports" :key="port" :href="parsePort(port).url" target="_blank">
+                    <a v-for="port in (ports ?? envsubstService.ports)" :key="port" :href="parsePort(port).url" target="_blank">
                         <span class="badge me-1 bg-secondary">{{ parsePort(port).display }}</span>
                     </a>
                 </div>
@@ -34,19 +34,19 @@
                             v-if="serviceCount > 1 && !isEditMode && (status === 'running' || status === 'healthy' || status === 'unhealthy')"
                             class="btn btn-normal"
                             :disabled="processing"
-                            @click="stopService"
+                            @click="restartService"
                         >
-                            <font-awesome-icon icon="stop" class="me-1" />
-                            {{ $t("stopStack") }}
+                            <font-awesome-icon icon="rotate" class="me-1" />
+                            {{ $t("restartStack") }}
                         </button>
                         <button
                             v-if="serviceCount > 1 && !isEditMode && (status === 'running' || status === 'healthy' || status === 'unhealthy')"
                             class="btn btn-normal"
                             :disabled="processing"
-                            @click="restartService"
+                            @click="stopService"
                         >
-                            <font-awesome-icon icon="rotate" class="me-1" />
-                            {{ $t("restartStack") }}
+                            <font-awesome-icon icon="stop" class="me-1" />
+                            {{ $t("stopStack") }}
                         </button>
                     </div>
                 </div>
@@ -219,15 +219,7 @@ export default defineComponent({
         },
         dockerStats: {
             type: Object,
-            default: null,
-        },
-        ports: {
-            type: Array,
             default: null
-        },
-        processing: {
-            type: Boolean,
-            default: false,
         }
     },
     emits: [

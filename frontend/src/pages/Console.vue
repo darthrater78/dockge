@@ -7,7 +7,6 @@
 
             <div v-else class="alert alert-warning shadow-box" role="alert">
                 <h4 class="alert-heading">{{ $t("Console is not enabled") }}</h4>
-
                 <i18n-t keypath="ConsoleNotEnabledMSG1" tag="p">
                     <template #docker><code>{{ $t('dockerCode') }}</code></template>
                     <template #rm><code>{{ $t('rmCode') }}</code></template>

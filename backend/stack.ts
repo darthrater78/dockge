@@ -21,30 +21,6 @@ import { InteractiveTerminal, Terminal } from "./terminal";
 import childProcessAsync from "promisify-child-process";
 import { Settings } from "./settings";
 
-// For getSingleComposeStatus and general compose stack objects
-export interface ComposeStack {
-    Name: string;
-    Status: string;
-    ConfigFiles?: string;
-    [key: string]: unknown; // Allows for other dynamic properties
-}
-
-// For docker ps --format json output
-export interface DockerContainerStatus {
-    ID: string;
-    Image: string;
-    Command: string;
-    CreatedAt: string;
-    RunningFor: string;
-    Status: string; // e.g., "exited (0) 2 hours ago"
-    Ports: string;
-    Names: string;
-}
-
-export interface DeleteOptions {
-    deleteStackFiles: boolean
-}
-
 export class Stack {
 
     name: string;
@@ -254,14 +230,12 @@ export class Stack {
         }
 
         // Write or overwrite the compose.yaml
-        await fsAsync.writeFile(path.join(dir, this._composeFileName), this.composeYAML);
-
-        const envPath = path.join(dir, ".env");
-
-        // Write or overwrite the .env
-        // If .env is not existing and the composeENV is empty, we don't need to write it
-        if (await fileExists(envPath) || this.composeENV.trim() !== "") {
-            await fsAsync.writeFile(envPath, this.composeENV);
+        fs.writeFileSync(path.join(dir, this._composeFileName), this.composeYAML);
+        if (process.env.PUID && process.env.PGID) {
+            const uid = Number(process.env.PUID);
+            const gid = Number(process.env.PGID);
+            fs.lchownSync(dir, uid, gid);
+            fs.chownSync(path.join(dir, this._composeFileName), uid, gid);
         }
 
         const overridePath = path.join(dir, this._composeOverrideFileName);
@@ -275,34 +249,19 @@ export class Stack {
 
     async deploy(socket : DockgeSocket) : Promise<number> {
         const terminalName = getComposeTerminalName(socket.endpoint, this.name);
-        let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", [ "compose", "up", "-d", "--remove-orphans" ], this.path);
+        let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("up", "-d", "--remove-orphans"), this.path);
         if (exitCode !== 0) {
             throw new Error("Failed to deploy, please check the terminal output for more information.");
         }
         return exitCode;
     }
 
-    async delete(socket: DockgeSocket, options: DeleteOptions) : Promise<number> {
+    async delete(socket: DockgeSocket) : Promise<number> {
         const terminalName = getComposeTerminalName(socket.endpoint, this.name);
-        let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", [ "compose", "down", "--remove-orphans" ], this.path);
+        let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("down", "--remove-orphans"), this.path);
         if (exitCode !== 0) {
-            throw new Error(`Failed to delete ${this.name}, please check the terminal output for more information.`);
+            throw new Error("Failed to delete, please check the terminal output for more information.");
         }
-
-        if (options.deleteStackFiles) {
-            // Remove the stack folder
-            await fsAsync.rm(this.path, {
-                recursive: true,
-                force: true
-            });
-        }
-
-        return exitCode;
-    }
-
-    async forceDelete(socket: DockgeSocket): Promise<number> {
-        const terminalName = getComposeTerminalName(socket.endpoint, this.name);
-        let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", [ "compose", "down", "-v", "--remove-orphans" ], this.path);
 
         // Remove the stack folder
         await fsAsync.rm(this.path, {
@@ -406,7 +365,7 @@ export class Stack {
                 stackList.set(composeStack.Name, stack);
             }
 
-            stack._status = await this.statusConvert(composeStack);
+            stack._status = this.statusConvert(composeStack.Status);
             stack._configFilePath = composeStack.ConfigFiles;
         }
 
@@ -431,71 +390,10 @@ export class Stack {
         let composeList = JSON.parse(res.stdout.toString());
 
         for (let composeStack of composeList) {
-            statusList.set(composeStack.Name, await this.statusConvert(composeStack));
+            statusList.set(composeStack.Name, this.statusConvert(composeStack.Status));
         }
 
         return statusList;
-    }
-
-    /**
-     * Get the detailed status of a single compose stack, listing every container in the stack
-     */
-
-    static async getSingleComposeStatus(composeName : string) : Promise<DockerContainerStatus[] | null> {
-        let res = await childProcessAsync.spawn("docker", [ "ps", "-a", "--filter", `label=com.docker.compose.project=${composeName}`, "--format", "json" ], {
-            encoding: "utf-8",
-        });
-
-        if (!res.stdout) {
-            return null;
-        }
-
-        let dockerResponse = res.stdout.toString();
-        try {
-            const output = dockerResponse.trim();
-            if (!output) {
-                return null;
-            }
-
-            // Handle newline-delimited JSON objects
-            return output.split("\n").map(line => JSON.parse(line));
-        } catch (error) {
-            console.error("Failed to parse JSON:", error);
-            return null;
-        }
-    }
-
-    /**
-     * Check if the compose stack is exited cleanly
-     * First, we need to get the number of containers that are in the exited state
-     * Then read all the containers and check if they are exited with status 0 (OK) or something else (Not OK)
-     */
-
-    static async isComposeExitClean(composeStack : ComposeStack) : Promise<number> {
-        // Safer parsing with regex to avoid crashes on unexpected status strings
-        const match = composeStack.Status.match(/\((\d+)\)/);
-        const expectedContainersExited = match ? parseInt(match[1]) : 0;
-
-        let cleanlyExitedContainerCount = 0;
-        const composeStatus = await this.getSingleComposeStatus(composeStack.Name);
-
-        if (!composeStatus) {
-            return EXITED;
-        }
-
-        const statusArray = Array.isArray(composeStatus) ? composeStatus : [ composeStatus ];
-
-        for (const containerStatus of statusArray) {
-            const status = containerStatus.Status.toLowerCase(); // case-insensitive
-            if (status.includes("exited")) {
-                if (status.includes("exited (0)")) {
-                    cleanlyExitedContainerCount++;
-                } else {
-                    return EXITED; // Non-zero exit code found
-                }
-            }
-        }
-        return (cleanlyExitedContainerCount === expectedContainersExited) ? RUNNING : EXITED;
     }
 
     /**
@@ -503,12 +401,13 @@ export class Stack {
      * Input Example: "exited(1), running(1)"
      * @param status
      */
-    static async statusConvert(composeStack : ComposeStack) : Promise<number> {
-        if (composeStack.Status.startsWith("created")) {
+    static statusConvert(status : string) : number {
+        if (status.startsWith("created")) {
             return CREATED_STACK;
-        } else if (composeStack.Status.includes("exited")) {
-            return await this.isComposeExitClean(composeStack);
-        } else if (composeStack.Status.startsWith("running")) {
+        } else if (status.includes("exited")) {
+            // If one of the service is exited, we consider the stack is exited
+            return EXITED;
+        } else if (status.startsWith("running")) {
             // If there is no exited services, there should be only running services
             return RUNNING;
         } else {
@@ -616,12 +515,6 @@ export class Stack {
         if (exitCode !== 0) {
             throw new Error("Failed to restart, please check the terminal output for more information.");
         }
-
-        exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", [ "image", "prune", "--all", "--force" ], this.path);
-        if (exitCode !== 0) {
-            throw new Error("Failed to restart, please check the terminal output for more information.");
-        }
-
         return exitCode;
     }
 

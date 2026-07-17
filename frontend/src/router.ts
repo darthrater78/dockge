@@ -7,8 +7,6 @@ import DashboardHome from "./pages/DashboardHome.vue";
 import Console from "./pages/Console.vue";
 import Compose from "./pages/Compose.vue";
 import ContainerTerminal from "./pages/ContainerTerminal.vue";
-import { useToast } from "vue-toastification";
-const toast = useToast();
 
 const Settings = () => import("./pages/Settings.vue");
 
@@ -99,15 +97,6 @@ const routes = [
         path: "/setup",
         component: Setup,
     },
-    {
-        path: "/:pathMatch(.*)*",
-        redirect: (to) => {
-            setTimeout(() => {
-                toast.error("Page not found");
-            }, 100);
-            return "/";
-        },
-    }
 ];
 
 export const router = createRouter({
