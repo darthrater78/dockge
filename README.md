@@ -150,6 +150,13 @@ Keys can be created in the [Cloudflare dashboard](https://developers.cloudflare.
 
 ## Version History
 
+### 1.5.3
+- Security: blocked path traversal via crafted stack names in all stack operations (start, stop, delete, etc.)
+- Security: JWT tokens now expire after 30 days instead of never
+- Security: `resetPassword` no longer leaves the plaintext password on the user model instance
+- Security: compose YAML `x-dockge.urls` now only renders `http:`/`https:` links, blocking `javascript:` XSS
+- Fixed: nightly release workflow now targets `ghcr.io/darthrater78/dockge` instead of the upstream namespace, and uses `GITHUB_TOKEN` instead of a custom PAT
+
 ### 1.5.2
 - Fixed: adding a new Dockge Agent failed with `SQLITE_ERROR: table agent has no column named name` on any pre-existing install. The original `agent` table migration was edited in place to add a `name` column instead of shipping a follow-up migration, so databases that had already applied the old migration never picked up the column. A new migration backfills it.
 

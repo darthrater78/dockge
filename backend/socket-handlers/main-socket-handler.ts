@@ -234,7 +234,7 @@ export class MainSocketHandler extends SocketHandler {
                 }
 
                 if (data.token) {
-                    // @ts-ignore
+                    // @ts-ignore — notp is not installed; 2FA is non-functional (upstream issue)
                     const verify = notp.totp.verify(data.token, user.twofa_secret, twoFAVerifyOptions);
 
                     if (user.twofa_last_token !== data.token && verify) {
