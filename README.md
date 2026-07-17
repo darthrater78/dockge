@@ -150,6 +150,9 @@ Keys can be created in the [Cloudflare dashboard](https://developers.cloudflare.
 
 ## Version History
 
+### 1.5.2
+- Fixed: adding a new Dockge Agent failed with `SQLITE_ERROR: table agent has no column named name` on any pre-existing install. The original `agent` table migration was edited in place to add a `name` column instead of shipping a follow-up migration, so databases that had already applied the old migration never picked up the column. A new migration backfills it.
+
 ### 1.5.1
 - Added Compose override editor (`compose.override.yaml` support)
 - Added optional Cloudflare Turnstile CAPTCHA on login
