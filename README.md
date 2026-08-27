@@ -24,7 +24,7 @@ View Video: https://youtu.be/AWAlOQeNpgU?t=48
 - 🧩 (1.5.1 🆕) Compose override editor - Edit `compose.override.yaml` alongside your main compose file, when present
 - 🔐 (1.5.1 🆕) Optional Cloudflare Turnstile CAPTCHA on login
 - 🌐 (1.6.0 🆕) REST API for external automation (CI/CD, scripts, monitoring)
-- 🔄 (1.8.0 🆕) Compose Drift Check — detect and fix image tag drift between running containers and compose files
+- 🔄 (1.8.0 🆕) Compose Drift Check — detect and fix image tag drift between running containers and compose files, including Dockge's own compose file
 
 <img src="https://github.com/louislam/dockge/assets/1336778/cc071864-592e-4909-b73a-343a57494002" width=300 />
 
@@ -239,6 +239,7 @@ The API communicates with remote agents via Socket.IO. Agents running pre-1.6.0 
 ## Version History
 
 ### 1.8.2
+- Self drift check: Dockge now auto-detects its own compose file and includes it in the Compose Drift Check scan. Requires mounting Dockge's compose directory into the container (e.g., `-v /opt/dockge:/opt/dockge`). Set `DOCKGE_SELF_DIR` env var if the mount path differs from the host path.
 - Security patch: updated `ws` (8.17.1 → 8.21.3) — fixes memory disclosure and DoS vulnerabilities
 - Security patch: updated `yaml` (2.3.4 → 2.9.0) — fixes stack overflow via deeply nested YAML collections
 - Security patch: updated `express` (4.21.2 → 4.22.2) — fixes body-parser DoS, path-to-regexp ReDoS, and qs DoS vulnerabilities

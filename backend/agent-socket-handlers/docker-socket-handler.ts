@@ -3,7 +3,7 @@ import { DockgeServer } from "../dockge-server";
 import { callbackError, callbackResult, checkLogin, DockgeSocket, ValidationError } from "../util-server";
 import { Stack } from "../stack";
 import { AgentSocket } from "../../common/agent-socket";
-import { scanStack, scanAllStacks, syncComposeFile } from "../compose-version-sync";
+import { scanStack, scanAllStacks, scanSelfStack, getSelfComposeDir, syncComposeFile } from "../compose-version-sync";
 import { VersionSyncHistoryService } from "../version-sync-history-service";
 
 export class DockerSocketHandler extends AgentSocketHandler {
@@ -332,14 +332,29 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     throw new ValidationError("New image must be a string");
                 }
 
-                const scanResult = await scanStack(server.stacksDir, stackName);
+                let scanResult;
+                let additionalAllowedDirs: string[] | undefined;
+
+                const selfDir = await getSelfComposeDir();
+                const selfScanResult = selfDir ? await scanSelfStack() : null;
+                const isSelfMismatch = selfScanResult?.mismatches.some(
+                    m => m.isSelf && m.stackName === stackName && m.service === serviceName
+                );
+
+                if (isSelfMismatch && selfScanResult) {
+                    scanResult = selfScanResult;
+                    additionalAllowedDirs = [selfDir!];
+                } else {
+                    scanResult = await scanStack(server.stacksDir, stackName);
+                }
+
                 const mismatch = scanResult.mismatches.find(m => m.service === serviceName);
 
                 if (!mismatch) {
                     throw new ValidationError("No mismatch found for this service");
                 }
 
-                const { oldImage } = syncComposeFile(mismatch.composePath, serviceName, newImage, server.stacksDir);
+                const { oldImage } = syncComposeFile(mismatch.composePath, serviceName, newImage, server.stacksDir, additionalAllowedDirs);
 
                 await VersionSyncHistoryService.recordSync(
                     stackName, socket.endpoint, serviceName, oldImage, newImage, mismatch.composePath, false
@@ -369,11 +384,13 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     scanResult = await scanAllStacks(server.stacksDir);
                 }
 
+                const selfDir = await getSelfComposeDir();
+                const additionalAllowedDirs = selfDir ? [selfDir] : undefined;
                 const synced: { stackName: string; service: string; oldImage: string; newImage: string }[] = [];
 
                 for (const mismatch of scanResult.mismatches) {
                     const { oldImage } = syncComposeFile(
-                        mismatch.composePath, mismatch.service, mismatch.runningImage, server.stacksDir
+                        mismatch.composePath, mismatch.service, mismatch.runningImage, server.stacksDir, additionalAllowedDirs
                     );
 
                     await VersionSyncHistoryService.recordSync(
