@@ -9,7 +9,7 @@ import { Agent } from "../models/agent";
 import childProcessAsync from "promisify-child-process";
 import crypto from "crypto";
 import { VersionSyncHistoryService } from "../version-sync-history-service";
-import { scanStack, scanAllStacks, scanSelfStack, getSelfComposeDir, syncComposeFile } from "../compose-version-sync";
+import { scanStack, scanAllStacks, syncComposeFile } from "../compose-version-sync";
 import { Settings } from "../settings";
 
 const STATUS_NAMES: Record<number, string> = {
@@ -585,29 +585,14 @@ export class ApiRouter extends Router {
                     return;
                 }
 
-                let scanResult;
-                let additionalAllowedDirs: string[] | undefined;
-
-                const selfDir = await getSelfComposeDir();
-                const selfScanResult = selfDir ? await scanSelfStack() : null;
-                const isSelfMismatch = selfScanResult?.mismatches.some(
-                    m => m.isSelf && m.stackName === stackName && m.service === service
-                );
-
-                if (isSelfMismatch && selfScanResult) {
-                    scanResult = selfScanResult;
-                    additionalAllowedDirs = [selfDir!];
-                } else {
-                    scanResult = await scanStack(server.stacksDir, stackName);
-                }
-
+                const scanResult = await scanStack(server.stacksDir, stackName);
                 const mismatch = scanResult.mismatches.find(m => m.service === service);
                 if (!mismatch) {
                     res.status(404).json({ ok: false, error: "No mismatch found for this service" });
                     return;
                 }
 
-                const { oldImage } = syncComposeFile(mismatch.composePath, service, newImage, server.stacksDir, additionalAllowedDirs);
+                const { oldImage } = syncComposeFile(mismatch.composePath, service, newImage, server.stacksDir);
                 await VersionSyncHistoryService.recordSync(stackName, "", service, oldImage, newImage, mismatch.composePath, false);
 
                 res.json({ ok: true, stackName, service, oldImage, newImage });
@@ -628,11 +613,9 @@ export class ApiRouter extends Router {
                     scanResult = await scanAllStacks(server.stacksDir);
                 }
 
-                const selfDir = await getSelfComposeDir();
-                const additionalAllowedDirs = selfDir ? [selfDir] : undefined;
                 const synced: { stackName: string; service: string; oldImage: string; newImage: string }[] = [];
                 for (const mismatch of scanResult.mismatches) {
-                    const { oldImage } = syncComposeFile(mismatch.composePath, mismatch.service, mismatch.runningImage, server.stacksDir, additionalAllowedDirs);
+                    const { oldImage } = syncComposeFile(mismatch.composePath, mismatch.service, mismatch.runningImage, server.stacksDir);
                     await VersionSyncHistoryService.recordSync(mismatch.stackName, "", mismatch.service, oldImage, mismatch.runningImage, mismatch.composePath, false);
                     synced.push({ stackName: mismatch.stackName, service: mismatch.service, oldImage, newImage: mismatch.runningImage });
                 }
@@ -677,9 +660,7 @@ export class ApiRouter extends Router {
                 }
 
                 const entry = revertable[0];
-                const selfDirForRevert = await getSelfComposeDir();
-                const revertAllowedDirs = selfDirForRevert ? [selfDirForRevert] : undefined;
-                syncComposeFile(entry.composePath, entry.service, entry.oldImage, server.stacksDir, revertAllowedDirs);
+                syncComposeFile(entry.composePath, entry.service, entry.oldImage, server.stacksDir);
                 await VersionSyncHistoryService.recordSync(entry.stackName, "", entry.service, entry.newImage, entry.oldImage, entry.composePath, true);
 
                 res.json({ ok: true, stackName, service, revertedTo: entry.oldImage });

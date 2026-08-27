@@ -16,7 +16,6 @@ export interface VersionMismatch {
     composeImage: string;
     runningImage: string;
     composePath: string;
-    isSelf?: boolean;
 }
 
 export interface VersionScanResult {
@@ -268,171 +267,14 @@ export async function scanAllStacks(stacksDir: string): Promise<VersionScanResul
         combined.unmatchedServices.push(...result.unmatchedServices);
     }
 
-    const selfResult = await scanSelfStack();
-    combined.mismatches.push(...selfResult.mismatches);
-    combined.matched.push(...selfResult.matched);
-    combined.unmatchedServices.push(...selfResult.unmatchedServices);
-
     return combined;
 }
 
-interface SelfComposeInfo {
-    projectName: string;
-    composeDir: string;
-}
-
-let cachedSelfCompose: SelfComposeInfo | null | undefined = undefined;
-
-async function detectSelfCompose(): Promise<SelfComposeInfo | null> {
-    if (cachedSelfCompose !== undefined) {
-        return cachedSelfCompose;
-    }
-
-    let containerId = "";
-
-    try {
-        const content = fs.readFileSync("/proc/self/cgroup", "utf-8");
-        const match = content.match(/[0-9a-f]{64}/);
-        if (match) {
-            containerId = match[0];
-        }
-    } catch {
-        // Not in a container or can't read cgroup
-    }
-
-    if (!containerId) {
-        const hostname = process.env.HOSTNAME || "";
-        if (/^[0-9a-f]{12,64}$/.test(hostname)) {
-            containerId = hostname;
-        }
-    }
-
-    if (!containerId) {
-        cachedSelfCompose = null;
-        return null;
-    }
-
-    try {
-        const res = await childProcessAsync.spawn("docker", [
-            "inspect", "--format", "json", containerId
-        ], { encoding: "utf-8" });
-
-        if (!res.stdout) {
-            cachedSelfCompose = null;
-            return null;
-        }
-
-        const data = JSON.parse(res.stdout.toString());
-        if (!Array.isArray(data) || !data[0]) {
-            cachedSelfCompose = null;
-            return null;
-        }
-
-        const labels = data[0].Config?.Labels || {};
-        const projectName = labels["com.docker.compose.project"];
-        const workingDir = labels["com.docker.compose.project.working_dir"];
-
-        if (!projectName || !workingDir) {
-            cachedSelfCompose = null;
-            return null;
-        }
-
-        const composeDir = process.env.DOCKGE_SELF_DIR || workingDir;
-
-        if (!fs.existsSync(composeDir)) {
-            log.debug("compose-version-sync", `Self compose dir ${composeDir} not accessible — mount it to enable self-drift-check`);
-            cachedSelfCompose = null;
-            return null;
-        }
-
-        const composePath = findComposeFile(composeDir);
-        if (!composePath) {
-            cachedSelfCompose = null;
-            return null;
-        }
-
-        cachedSelfCompose = { projectName, composeDir };
-        log.info("compose-version-sync", `Detected self compose: project=${projectName} dir=${composeDir}`);
-        return cachedSelfCompose;
-    } catch (e) {
-        log.debug("compose-version-sync", `Failed to detect self compose: ${e}`);
-        cachedSelfCompose = null;
-        return null;
-    }
-}
-
-export async function getSelfComposeDir(): Promise<string | null> {
-    const info = await detectSelfCompose();
-    return info ? info.composeDir : null;
-}
-
-export async function scanSelfStack(): Promise<VersionScanResult> {
-    const result: VersionScanResult = {
-        mismatches: [],
-        matched: [],
-        unmatchedServices: [],
-    };
-
-    const selfCompose = await detectSelfCompose();
-    if (!selfCompose) {
-        return result;
-    }
-
-    const composePath = findComposeFile(selfCompose.composeDir);
-    if (!composePath) {
-        return result;
-    }
-
-    const composeServices = getComposeServices(composePath);
-    const runningContainers = await getRunningContainers();
-
-    for (const [serviceName, composeImage] of composeServices) {
-        const key = `${selfCompose.projectName}::${serviceName}`;
-        const container = runningContainers.get(key);
-
-        if (!container) {
-            result.unmatchedServices.push({ stackName: selfCompose.projectName, service: serviceName, composeImage });
-            continue;
-        }
-
-        const bestTag = findBestRunningTag(container.imageTags, composeImage);
-        const runningImage = bestTag || container.configImage;
-
-        if (imageRefsMatch(composeImage, runningImage)) {
-            result.matched.push({ stackName: selfCompose.projectName, service: serviceName, image: composeImage });
-        } else {
-            result.mismatches.push({
-                stackName: selfCompose.projectName,
-                service: serviceName,
-                composeImage,
-                runningImage,
-                composePath,
-                isSelf: true,
-            });
-        }
-    }
-
-    return result;
-}
-
-export function syncComposeFile(composePath: string, serviceName: string, newImage: string, stacksDir: string, additionalAllowedDirs?: string[]): { oldImage: string; success: boolean } {
+export function syncComposeFile(composePath: string, serviceName: string, newImage: string, stacksDir: string): { oldImage: string; success: boolean } {
     const resolvedPath = path.resolve(composePath);
     const resolvedStacksDir = path.resolve(stacksDir);
-
-    let allowed = resolvedPath.startsWith(resolvedStacksDir + path.sep);
-
-    if (!allowed && additionalAllowedDirs) {
-        for (const dir of additionalAllowedDirs) {
-            const resolvedDir = path.resolve(dir);
-            if (resolvedPath.startsWith(resolvedDir + path.sep)) {
-                allowed = true;
-                break;
-            }
-        }
-    }
-
-    if (!allowed) {
-        throw new Error("Compose file path is outside allowed directories");
+    if (!resolvedPath.startsWith(resolvedStacksDir + path.sep)) {
+        throw new Error("Compose file path is outside stacks directory");
     }
 
     const content = fs.readFileSync(composePath, "utf-8");

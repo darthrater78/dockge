@@ -85,13 +85,7 @@
                                 <tbody>
                                     <tr v-for="(m, i) in allMismatches" :key="i">
                                         <td>
-                                            <template v-if="m.isSelf">
-                                                <span>{{ m.stackName }}</span>
-                                                <span class="badge bg-info ms-1" style="font-size: 10px;">Dockge</span>
-                                            </template>
-                                            <template v-else>
-                                                <router-link :to="'/compose/' + m.stackName + (m.endpoint ? '/' + m.endpoint : '')">{{ m.stackName }}</router-link>
-                                            </template>
+                                            <router-link :to="'/compose/' + m.stackName + (m.endpoint ? '/' + m.endpoint : '')">{{ m.stackName }}</router-link>
                                             <span v-if="m.endpoint" class="badge bg-secondary ms-1" style="font-size: 10px;">{{ getEndpointLabel(m.endpoint) }}</span>
                                         </td>
                                         <td>{{ m.service }}</td>
