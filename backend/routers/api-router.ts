@@ -203,7 +203,9 @@ export class ApiRouter extends Router {
 
                 for (const url in agentList) {
                     const agent = agentList[url];
-                    if (!url || agent.endpoint === "") continue;
+                    if (!url || agent.endpoint === "") {
+                        continue;
+                    }
 
                     agents.push({
                         endpoint: agent.endpoint,
@@ -679,10 +681,18 @@ export class ApiRouter extends Router {
         router.get("/api/version-sync/history", async (req: Request, res: Response) => {
             try {
                 const options: Record<string, unknown> = {};
-                if (req.query.limit) options.limit = parseInt(req.query.limit as string, 10);
-                if (req.query.offset) options.offset = parseInt(req.query.offset as string, 10);
-                if (req.query.stack) options.stackName = req.query.stack as string;
-                if (req.query.service) options.service = req.query.service as string;
+                if (req.query.limit) {
+                    options.limit = parseInt(req.query.limit as string, 10);
+                }
+                if (req.query.offset) {
+                    options.offset = parseInt(req.query.offset as string, 10);
+                }
+                if (req.query.stack) {
+                    options.stackName = req.query.stack as string;
+                }
+                if (req.query.service) {
+                    options.service = req.query.service as string;
+                }
 
                 const result = await VersionSyncHistoryService.getHistory(options);
                 res.json({ ok: true, ...result });
