@@ -50,4 +50,4 @@ jobs:
         run: npm run build:frontend
 
       - name: Build and push image
-        run: npm run build:docker-ghcr
+        run: npm run build:docker
