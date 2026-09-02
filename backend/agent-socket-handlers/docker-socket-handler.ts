@@ -178,6 +178,28 @@ export class DockerSocketHandler extends AgentSocketHandler {
             }
         });
 
+        // updateStack
+        agentSocket.on("updateStack", async (stackName : unknown, callback) => {
+            try {
+                checkLogin(socket);
+
+                if (typeof(stackName) !== "string") {
+                    throw new ValidationError("Stack name must be a string");
+                }
+
+                const stack = await Stack.getStack(server, stackName);
+                await stack.update(socket);
+                callbackResult({
+                    ok: true,
+                    msg: "Updated",
+                    msgi18n: true,
+                }, callback);
+                server.sendStackList();
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
         // down stack
         agentSocket.on("downStack", async (stackName : unknown, callback) => {
             try {
@@ -349,7 +371,12 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     ok: true,
                     msg: "versionSynced",
                     msgi18n: true,
-                    data: { stackName, service: serviceName, oldImage, newImage },
+                    data: {
+                        stackName,
+                        service: serviceName,
+                        oldImage,
+                        newImage,
+                    },
                 }, callback);
 
                 server.sendStackList();
@@ -393,7 +420,10 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     ok: true,
                     msg: "allVersionsSynced",
                     msgi18n: true,
-                    data: { synced, count: synced.length },
+                    data: {
+                        synced,
+                        count: synced.length,
+                    },
                 }, callback);
 
                 server.sendStackList();
@@ -431,7 +461,11 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     ok: true,
                     msg: "versionReverted",
                     msgi18n: true,
-                    data: { stackName, service: serviceName, revertedTo: entry.oldImage },
+                    data: {
+                        stackName,
+                        service: serviceName,
+                        revertedTo: entry.oldImage,
+                    },
                 }, callback);
 
                 server.sendStackList();

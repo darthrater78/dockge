@@ -203,7 +203,9 @@ export class ApiRouter extends Router {
 
                 for (const url in agentList) {
                     const agent = agentList[url];
-                    if (!url || agent.endpoint === "") continue;
+                    if (!url || agent.endpoint === "") {
+                        continue;
+                    }
 
                     agents.push({
                         endpoint: agent.endpoint,
@@ -474,6 +476,53 @@ export class ApiRouter extends Router {
             }
         });
 
+        // POST /api/stacks/:name/update — pull images and restart
+        router.post("/api/stacks/:name/update", validateStackName, async (req: Request, res: Response) => {
+            try {
+                const endpoint = await resolveEndpoint((req.query.endpoint as string) || "");
+
+                if (!validateEndpoint(endpoint)) {
+                    res.status(400).json({ ok: false, error: "Invalid endpoint format" });
+                    return;
+                }
+
+                if (endpoint && endpoint !== "") {
+                    const result = await emitToAgent(server, endpoint, "updateStack", req.params.name);
+                    if (result.ok) {
+                        res.json({ ok: true, message: `Stack '${req.params.name}' updated on ${endpoint}`, endpoint });
+                    } else {
+                        res.status(500).json({ ok: false, error: result.msg || "Update failed on agent" });
+                    }
+                    return;
+                }
+
+                const stack = await Stack.getStack(server, req.params.name, false);
+
+                await childProcessAsync.spawn("docker", [...stack.composeArgs, "pull"], {
+                    cwd: stack.path,
+                    encoding: "utf-8",
+                });
+
+                await childProcessAsync.spawn("docker", [...stack.composeArgs, "up", "-d", "--remove-orphans"], {
+                    cwd: stack.path,
+                    encoding: "utf-8",
+                });
+
+                res.json({
+                    ok: true,
+                    message: `Stack '${req.params.name}' updated`,
+                    endpoint: "",
+                });
+            } catch (e) {
+                if (e instanceof ValidationError) {
+                    res.status(404).json({ ok: false, error: "Stack not found" });
+                } else {
+                    log.error("api", `POST /api/stacks/${req.params.name}/update error: ${e}`);
+                    res.status(500).json({ ok: false, error: "Failed to update stack" });
+                }
+            }
+        });
+
         // POST /api/stacks/:name/down — stop and remove containers (inactive)
         router.post("/api/stacks/:name/down", validateStackName, async (req: Request, res: Response) => {
             try {
@@ -632,10 +681,18 @@ export class ApiRouter extends Router {
         router.get("/api/version-sync/history", async (req: Request, res: Response) => {
             try {
                 const options: Record<string, unknown> = {};
-                if (req.query.limit) options.limit = parseInt(req.query.limit as string, 10);
-                if (req.query.offset) options.offset = parseInt(req.query.offset as string, 10);
-                if (req.query.stack) options.stackName = req.query.stack as string;
-                if (req.query.service) options.service = req.query.service as string;
+                if (req.query.limit) {
+                    options.limit = parseInt(req.query.limit as string, 10);
+                }
+                if (req.query.offset) {
+                    options.offset = parseInt(req.query.offset as string, 10);
+                }
+                if (req.query.stack) {
+                    options.stackName = req.query.stack as string;
+                }
+                if (req.query.service) {
+                    options.service = req.query.service as string;
+                }
 
                 const result = await VersionSyncHistoryService.getHistory(options);
                 res.json({ ok: true, ...result });
