@@ -371,7 +371,12 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     ok: true,
                     msg: "versionSynced",
                     msgi18n: true,
-                    data: { stackName, service: serviceName, oldImage, newImage },
+                    data: {
+                        stackName,
+                        service: serviceName,
+                        oldImage,
+                        newImage,
+                    },
                 }, callback);
 
                 server.sendStackList();
@@ -415,7 +420,10 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     ok: true,
                     msg: "allVersionsSynced",
                     msgi18n: true,
-                    data: { synced, count: synced.length },
+                    data: {
+                        synced,
+                        count: synced.length,
+                    },
                 }, callback);
 
                 server.sendStackList();
@@ -453,7 +461,11 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     ok: true,
                     msg: "versionReverted",
                     msgi18n: true,
-                    data: { stackName, service: serviceName, revertedTo: entry.oldImage },
+                    data: {
+                        stackName,
+                        service: serviceName,
+                        revertedTo: entry.oldImage,
+                    },
                 }, callback);
 
                 server.sendStackList();
