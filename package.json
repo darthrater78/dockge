@@ -1,6 +1,6 @@
 {
     "name": "dockge",
-    "version": "1.9.1",
+    "version": "1.9.2",
     "repository": {
         "type": "git",
         "url": "https://github.com/darthrater78/dockge.git"
@@ -61,7 +61,7 @@
         "yaml": "~2.9.0"
     },
     "devDependencies": {
-"@codemirror/lang-python": "^6.1.7",
+        "@codemirror/lang-python": "^6.1.7",
         "@codemirror/lang-yaml": "^6.1.2",
         "@fontsource/jetbrains-mono": "^5.2.5",
         "@fortawesome/fontawesome-svg-core": "6.4.2",
