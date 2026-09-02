@@ -120,7 +120,7 @@ Dockge itself is Louis Lam's project. This fork is built on top of the [original
 ## ⭐ Features
 
 - 🧑‍💼 Manage your `compose.yaml` files
-  - Create/Edit/Start/Stop/Restart/Delete
+  - Create/Edit/Start/Stop/Restart/Update/Delete
 - ⌨️ Interactive Editor for `compose.yaml`
 - 🦦 Interactive Web Terminal
 - 🕷️ (1.4.0 🆕) Multiple agents support - You can manage multiple stacks from different Docker hosts in one single interface
@@ -278,6 +278,7 @@ Or set it at runtime through the UI/socket settings. The key is stored as a SHA-
 | `POST` | `/api/stacks/:name/start` | Start a stack |
 | `POST` | `/api/stacks/:name/stop` | Stop a stack |
 | `POST` | `/api/stacks/:name/restart` | Restart a stack |
+| `POST` | `/api/stacks/:name/update` | Pull images and restart a stack |
 | `POST` | `/api/stacks/:name/down` | Tear down a stack |
 | `GET` | `/api/version-sync/scan` | Scan for image tag mismatches between compose files and running containers |
 | `POST` | `/api/version-sync/sync` | Sync a specific service's compose image to the running version |
@@ -346,6 +347,15 @@ The API communicates with remote agents via Socket.IO. Agents running pre-1.6.0 
 
 ## Version History
 
+### 1.9.1
+
+**Restored**
+- Update button — pull images and restart stack via compose (accidentally removed in 1.8.0 alongside the skopeo-based image update detection)
+- `POST /api/stacks/:name/update` API endpoint
+
+**Fixed**
+- About page release link now points to the fork repository
+
 ### 1.9.0
 
 **Added**
@@ -390,7 +400,7 @@ Security patch — updated production dependencies to fix known vulnerabilities:
 - Image update detection feature (skopeo-based registry digest comparison)
 - Auto-update scheduler (cron-based), per-stack auto-update toggle, and "Update All" button
 - `skopeo` from Docker image dependencies
-- All update-related API endpoints (`/api/stacks/:name/update`, `/api/stacks/:name/check-updates`, `/api/update-all`, `/api/scheduler`, `/api/update-history`)
+- All update-related API endpoints (`/api/stacks/:name/check-updates`, `/api/update-all`, `/api/scheduler`, `/api/update-history`); the basic `/api/stacks/:name/update` endpoint was restored in v1.9.1
 - Settings UI for update defaults and scheduler configuration
 
 **Changed**
