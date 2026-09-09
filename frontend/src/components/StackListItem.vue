@@ -8,6 +8,9 @@
                 <span v-for="port in displayPorts" :key="port" class="badge port-badge">{{ port }}</span>
                 <span v-if="overflowCount > 0" class="badge port-badge port-overflow">+{{ overflowCount }}</span>
             </span>
+            <span v-else class="ports">
+                <span class="badge host-badge">HOST</span>
+            </span>
         </div>
     </router-link>
 </template>
@@ -184,6 +187,8 @@ export default {
 
         .title {
             margin-top: -4px;
+            font-size: 0.95rem;
+            font-weight: 600;
         }
 
         .ports {
@@ -217,6 +222,15 @@ export default {
 
 .port-overflow {
     opacity: 0.7;
+}
+
+.host-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background-color: rgba($warning, 0.15);
+    color: $warning;
 }
 
 .collapsed {
