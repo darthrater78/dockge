@@ -46,8 +46,31 @@ jobs:
         id: version
         run: echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
 
+      - name: Determine if pre-release
+        id: prerelease
+        run: |
+          if echo "$VERSION" | grep -qE '(alpha|beta|rc|dev)'; then
+            echo "IS_PRERELEASE=true" >> "$GITHUB_ENV"
+          else
+            echo "IS_PRERELEASE=false" >> "$GITHUB_ENV"
+          fi
+
       - name: Build frontend
         run: npm run build:frontend
 
-      - name: Build and push image
+      - name: Build and push image (stable)
+        if: env.IS_PRERELEASE == 'false'
         run: npm run build:docker
+
+      - name: Build and push image (pre-release)
+        if: env.IS_PRERELEASE == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: true
+          target: release
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/dockge:${{ env.VERSION }}
+            ghcr.io/${{ github.repository_owner }}/dockge:beta
