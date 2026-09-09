@@ -238,14 +238,14 @@ export default {
             const allStacks = Object.values(this.$root.completeStackList);
             const byEndpoint = {};
             for (const stack of allStacks) {
-                if (!stack.ports || stack.ports.length === 0) {
+                if (!stack.ports || stack.ports.length === 0 || stack.status !== RUNNING) {
                     continue;
                 }
                 const endpoint = stack.endpoint || "current";
                 if (!byEndpoint[endpoint]) {
                     byEndpoint[endpoint] = {};
                 }
-                const ports = stack.ports.map(raw => {
+                const uniquePorts = new Set(stack.ports.map(raw => {
                     const stripped = raw.split("/")[0];
                     const lastColon = stripped.lastIndexOf(":");
                     if (lastColon === -1) {
@@ -257,8 +257,8 @@ export default {
                         return hostPart.substring(ipColon + 1);
                     }
                     return hostPart;
-                });
-                for (const port of ports) {
+                }));
+                for (const port of uniquePorts) {
                     if (!byEndpoint[endpoint][port]) {
                         byEndpoint[endpoint][port] = 0;
                     }
