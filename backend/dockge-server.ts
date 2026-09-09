@@ -210,7 +210,7 @@ export class DockgeServer {
         }));
 
         // Universal Route Handler, must be at the end of all express routes.
-        this.app.get("*", async (_request, response) => {
+        this.app.use(async (_request, response) => {
             response.send(this.indexHTML);
         });
 

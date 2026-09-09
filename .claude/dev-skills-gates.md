@@ -7,5 +7,5 @@ Updated: 2026-09-09
 🔨 BUILD      ✅ frontend build verified
 🔒 SECURITY   ✅ 0 Critical, 0 High
 📄 DOCS       ➖ N/A — feature branch, no changelog needed pre-merge
-📦 RELEASE    ⏳ PR #26 open (user-driven), version bumped to 2.0.0
-🚀 SHIP       ⬜
+📦 RELEASE    ✅ PR #26 ready, release notes approved
+🚀 SHIP       ⏳
