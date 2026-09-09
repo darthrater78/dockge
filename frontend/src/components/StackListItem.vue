@@ -1,14 +1,21 @@
 <template>
     <router-link :to="url" :class="{ 'dim' : !stack.isManagedByDockge }" class="item">
         <Uptime :stack="stack" :fixed-width="true" class="me-2" />
-        <div class="title">
-            <span>{{ stackName }}</span>
+        <div class="title-and-ports">
+            <span class="title">{{ stackName }}</span>
+            <span v-if="displayPorts.length > 0" class="ports">
+                <span v-for="port in displayPorts" :key="port" class="badge port-badge">{{ port }}</span>
+                <span v-if="overflowCount > 0" class="badge port-badge port-overflow">+{{ overflowCount }}</span>
+            </span>
         </div>
     </router-link>
 </template>
 
 <script>
 import Uptime from "./Uptime.vue";
+import { parseDockerPort } from "../../../common/util-common";
+
+const MAX_VISIBLE_PORTS = 3;
 
 export default {
     components: {
@@ -69,6 +76,19 @@ export default {
         },
         stackName() {
             return this.stack.name;
+        },
+        parsedPorts() {
+            if (!this.stack.ports || this.stack.ports.length === 0) {
+                return [];
+            }
+            let hostname = this.$root.info?.primaryHostname || location.hostname;
+            return this.stack.ports.map(port => parseDockerPort(port, hostname));
+        },
+        displayPorts() {
+            return this.parsedPorts.slice(0, MAX_VISIBLE_PORTS).map(p => p.display);
+        },
+        overflowCount() {
+            return Math.max(0, this.parsedPorts.length - MAX_VISIBLE_PORTS);
         }
     },
     watch: {
@@ -146,13 +166,38 @@ export default {
     &.active {
         background-color: #cdf8f4;
     }
-    .title {
-        margin-top: -4px;
+    .title-and-ports {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+
+        .title {
+            margin-top: -4px;
+        }
+
+        .ports {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            margin-top: 2px;
+        }
     }
     .endpoint {
         font-size: 12px;
         color: $dark-font-color3;
     }
+}
+
+.port-badge {
+    font-size: 0.65rem;
+    font-weight: normal;
+    padding: 1px 5px;
+    background-color: rgba(0, 0, 0, 0.1);
+    color: #6c757d;
+}
+
+.port-overflow {
+    font-style: italic;
 }
 
 .collapsed {
