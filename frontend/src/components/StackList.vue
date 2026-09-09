@@ -72,6 +72,7 @@
                 <StackListItem
                     v-for="(item, index) in agent.stacks"
                     v-show="$root.agentCount === 1 || !closedAgents.get(agent.endpoint)" :key="index" :stack="item" :isSelectMode="selectMode"
+                    :conflictingPorts="conflictingPorts"
                     :isSelected="isSelected" :select="select" :deselect="deselect"
                 />
             </div>
@@ -231,6 +232,42 @@ export default {
             });
 
             return result;
+        },
+
+        conflictingPorts() {
+            const allStacks = Object.values(this.$root.completeStackList);
+            const portOwners = {};
+            for (const stack of allStacks) {
+                if (!stack.ports || stack.ports.length === 0) {
+                    continue;
+                }
+                const ports = stack.ports.map(raw => {
+                    const stripped = raw.split("/")[0];
+                    const lastColon = stripped.lastIndexOf(":");
+                    if (lastColon === -1) {
+                        return stripped;
+                    }
+                    const hostPart = stripped.substring(0, lastColon);
+                    const ipColon = hostPart.indexOf(":");
+                    if (ipColon !== -1) {
+                        return hostPart.substring(ipColon + 1);
+                    }
+                    return hostPart;
+                });
+                for (const port of ports) {
+                    if (!portOwners[port]) {
+                        portOwners[port] = [];
+                    }
+                    portOwners[port].push(stack.name);
+                }
+            }
+            const conflicts = new Set();
+            for (const [port, owners] of Object.entries(portOwners)) {
+                if (owners.length > 1) {
+                    conflicts.add(port);
+                }
+            }
+            return conflicts;
         },
 
         isDarkTheme() {

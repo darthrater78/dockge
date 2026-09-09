@@ -2,10 +2,10 @@
     <router-link :to="url" :class="{ 'dim' : !stack.isManagedByDockge }" class="item">
         <Uptime :stack="stack" :fixed-width="true" class="me-2" />
         <div class="title-and-ports">
-            <span class="title">{{ stackName }}</span>
+            <span class="title" :class="{ 'port-conflict': hasPortConflict }">{{ stackName }}</span>
             <span v-if="displayPorts.length > 0" class="ports">
-                <span class="port-label">Configured Ports:</span>
-                <span v-for="port in displayPorts" :key="port" class="badge port-badge">{{ port }}</span>
+                <span class="port-label" :class="{ 'port-conflict': hasPortConflict }">Configured Ports:</span>
+                <span v-for="port in displayPorts" :key="port" class="badge port-badge" :class="{ 'port-conflict-badge': conflictingPorts.has(port) }">{{ port }}</span>
                 <span v-if="overflowCount > 0" class="badge port-badge port-overflow">+{{ overflowCount }}</span>
             </span>
             <span v-else-if="isRunning" class="ports">
@@ -55,6 +55,11 @@ export default {
         deselect: {
             type: Function,
             default: () => {}
+        },
+        /** Set of port numbers that conflict across stacks */
+        conflictingPorts: {
+            type: Set,
+            default: () => new Set(),
         },
     },
     data() {
@@ -107,6 +112,9 @@ export default {
         },
         isRunning() {
             return this.stack?.status === RUNNING;
+        },
+        hasPortConflict() {
+            return this.portList.some(port => this.conflictingPorts.has(port));
         }
     },
     watch: {
@@ -230,6 +238,15 @@ export default {
 
 .port-overflow {
     opacity: 0.7;
+}
+
+.port-conflict {
+    color: $danger !important;
+}
+
+.port-conflict-badge {
+    background-color: rgba($danger, 0.15) !important;
+    color: $danger !important;
 }
 
 .host-badge {
