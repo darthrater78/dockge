@@ -201,7 +201,8 @@ export default {
 
 .port-label {
     font-size: 0.7rem;
-    color: $dark-font-color3;
+    font-weight: 600;
+    color: $primary;
     align-self: center;
 }
 
