@@ -4,6 +4,7 @@
         <div class="title-and-ports">
             <span class="title">{{ stackName }}</span>
             <span v-if="displayPorts.length > 0" class="ports">
+                <span class="port-label">Active Ports:</span>
                 <span v-for="port in displayPorts" :key="port" class="badge port-badge">{{ port }}</span>
                 <span v-if="overflowCount > 0" class="badge port-badge port-overflow">+{{ overflowCount }}</span>
             </span>
@@ -196,6 +197,12 @@ export default {
         font-size: 12px;
         color: $dark-font-color3;
     }
+}
+
+.port-label {
+    font-size: 0.7rem;
+    color: $dark-font-color3;
+    align-self: center;
 }
 
 .port-badge {
