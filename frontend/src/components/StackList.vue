@@ -72,7 +72,7 @@
                 <StackListItem
                     v-for="(item, index) in agent.stacks"
                     v-show="$root.agentCount === 1 || !closedAgents.get(agent.endpoint)" :key="index" :stack="item" :isSelectMode="selectMode"
-                    :conflictingPorts="conflictingPorts"
+                    :conflictingPorts="conflictingPortsByEndpoint[agent.endpoint] || new Set()"
                     :isSelected="isSelected" :select="select" :deselect="deselect"
                 />
             </div>
@@ -234,12 +234,16 @@ export default {
             return result;
         },
 
-        conflictingPorts() {
+        conflictingPortsByEndpoint() {
             const allStacks = Object.values(this.$root.completeStackList);
-            const portOwners = {};
+            const byEndpoint = {};
             for (const stack of allStacks) {
                 if (!stack.ports || stack.ports.length === 0) {
                     continue;
+                }
+                const endpoint = stack.endpoint || "current";
+                if (!byEndpoint[endpoint]) {
+                    byEndpoint[endpoint] = {};
                 }
                 const ports = stack.ports.map(raw => {
                     const stripped = raw.split("/")[0];
@@ -255,19 +259,23 @@ export default {
                     return hostPart;
                 });
                 for (const port of ports) {
-                    if (!portOwners[port]) {
-                        portOwners[port] = [];
+                    if (!byEndpoint[endpoint][port]) {
+                        byEndpoint[endpoint][port] = 0;
                     }
-                    portOwners[port].push(stack.name);
+                    byEndpoint[endpoint][port]++;
                 }
             }
-            const conflicts = new Set();
-            for (const [port, owners] of Object.entries(portOwners)) {
-                if (owners.length > 1) {
-                    conflicts.add(port);
+            const result = {};
+            for (const [endpoint, portCounts] of Object.entries(byEndpoint)) {
+                const conflicts = new Set();
+                for (const [port, count] of Object.entries(portCounts)) {
+                    if (count > 1) {
+                        conflicts.add(port);
+                    }
                 }
+                result[endpoint] = conflicts;
             }
-            return conflicts;
+            return result;
         },
 
         isDarkTheme() {
