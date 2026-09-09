@@ -13,7 +13,6 @@
 
 <script>
 import Uptime from "./Uptime.vue";
-import { parseDockerPort } from "../../../common/util-common";
 
 const MAX_VISIBLE_PORTS = 3;
 
@@ -77,18 +76,29 @@ export default {
         stackName() {
             return this.stack.name;
         },
-        parsedPorts() {
+        portList() {
             if (!this.stack.ports || this.stack.ports.length === 0) {
                 return [];
             }
-            let hostname = this.$root.info?.primaryHostname || location.hostname;
-            return this.stack.ports.map(port => parseDockerPort(port, hostname));
+            return this.stack.ports.map(raw => {
+                const stripped = raw.split("/")[0];
+                const lastColon = stripped.lastIndexOf(":");
+                if (lastColon === -1) {
+                    return stripped;
+                }
+                const hostPart = stripped.substring(0, lastColon);
+                const ipColon = hostPart.indexOf(":");
+                if (ipColon !== -1) {
+                    return hostPart.substring(ipColon + 1);
+                }
+                return hostPart;
+            });
         },
         displayPorts() {
-            return this.parsedPorts.slice(0, MAX_VISIBLE_PORTS).map(p => p.display);
+            return this.portList.slice(0, MAX_VISIBLE_PORTS);
         },
         overflowCount() {
-            return Math.max(0, this.parsedPorts.length - MAX_VISIBLE_PORTS);
+            return Math.max(0, this.portList.length - MAX_VISIBLE_PORTS);
         }
     },
     watch: {
@@ -189,15 +199,16 @@ export default {
 }
 
 .port-badge {
-    font-size: 0.65rem;
-    font-weight: normal;
-    padding: 1px 5px;
-    background-color: rgba(0, 0, 0, 0.1);
-    color: #6c757d;
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background-color: rgba(116, 194, 255, 0.15);
+    color: $primary;
 }
 
 .port-overflow {
-    font-style: italic;
+    opacity: 0.7;
 }
 
 .collapsed {
