@@ -1,11 +1,11 @@
 # Dev Skills gate state
 Track: release sequence
-Version: 2.0.0-beta.10
+Version: 2.0.0
 Updated: 2026-09-09
 
-🔢 VERSION    ✅ all refs at 2.0.0-beta.10
+🔢 VERSION    ✅ all refs at 2.0.0
 🔨 BUILD      ✅ frontend build verified
 🔒 SECURITY   ✅ 0 Critical, 0 High
-📄 DOCS       ➖ N/A — beta pre-release from feature branch
-📦 RELEASE    ⏳ commit pending approval
+📄 DOCS       ➖ N/A — feature branch, no changelog needed pre-merge
+📦 RELEASE    ⏳ PR #26 open (user-driven), version bumped to 2.0.0
 🚀 SHIP       ⬜
