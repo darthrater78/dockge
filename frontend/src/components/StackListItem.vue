@@ -8,7 +8,7 @@
                 <span v-for="port in displayPorts" :key="port" class="badge port-badge">{{ port }}</span>
                 <span v-if="overflowCount > 0" class="badge port-badge port-overflow">+{{ overflowCount }}</span>
             </span>
-            <span v-else class="ports">
+            <span v-else-if="isRunning" class="ports">
                 <span class="badge host-badge">HOST</span>
             </span>
         </div>
@@ -17,6 +17,7 @@
 
 <script>
 import Uptime from "./Uptime.vue";
+import { RUNNING } from "../../../common/util-common";
 
 const MAX_VISIBLE_PORTS = 3;
 
@@ -103,6 +104,9 @@ export default {
         },
         overflowCount() {
             return Math.max(0, this.portList.length - MAX_VISIBLE_PORTS);
+        },
+        isRunning() {
+            return this.stack?.status === RUNNING;
         }
     },
     watch: {
