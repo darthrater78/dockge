@@ -108,7 +108,39 @@ export class Stack {
             composeFileName: this._composeFileName,
             composeOverrideFileName: this._composeOverrideFileName,
             endpoint,
+            ports: this.extractPorts(),
         };
+    }
+
+    protected extractPorts() : string[] {
+        try {
+            const doc = yaml.parse(this.composeYAML);
+            if (!doc || !doc.services) {
+                return [];
+            }
+            const ports : string[] = [];
+            for (const serviceName in doc.services) {
+                const service = doc.services[serviceName];
+                if (Array.isArray(service.ports)) {
+                    for (const port of service.ports) {
+                        if (typeof port === "string") {
+                            ports.push(port);
+                        } else if (typeof port === "number") {
+                            ports.push(String(port));
+                        } else if (port && typeof port === "object" && port.published) {
+                            let entry = `${port.published}:${port.target || port.published}`;
+                            if (port.protocol) {
+                                entry += `/${port.protocol}`;
+                            }
+                            ports.push(entry);
+                        }
+                    }
+                }
+            }
+            return ports;
+        } catch (e) {
+            return [];
+        }
     }
 
     /**
