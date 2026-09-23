@@ -28,6 +28,7 @@ declare module 'vue' {
     StackList: typeof import('./src/components/StackList.vue')['default']
     StackListItem: typeof import('./src/components/StackListItem.vue')['default']
     Terminal: typeof import('./src/components/Terminal.vue')['default']
+    TerminalPanel: typeof import('./src/components/TerminalPanel.vue')['default']
     TwoFADialog: typeof import('./src/components/TwoFADialog.vue')['default']
     Updates: typeof import('./src/components/settings/Updates.vue')['default']
     Uptime: typeof import('./src/components/Uptime.vue')['default']

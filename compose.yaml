@@ -23,3 +23,5 @@ services:
       # Optional — only if you want CAPTCHA on login:
       # - TURNSTILE_SITE_KEY=<your Turnstile site key>
       # - TURNSTILE_SECRET_KEY=<your Turnstile secret key>
+      # Optional — only if you embed Dockge in a dashboard iframe (see README):
+      # - DOCKGE_ALLOW_FRAMING=true

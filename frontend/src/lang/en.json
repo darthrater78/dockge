@@ -13,6 +13,8 @@
     "compose": "Compose",
     "stackList": "Stacks",
     "resizeTerminal": "Resize terminal (drag, or use arrow keys)",
+    "expandTerminal": "Expand terminal",
+    "collapseTerminal": "Restore terminal size (Esc)",
     "addFirstStackMsg": "Compose your first stack!",
     "stackName": "Stack Name",
     "deployStack": "Deploy",

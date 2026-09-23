@@ -16,7 +16,7 @@
                 <span class="fs-4 title">Dockge</span>
             </router-link>
 
-            <a v-if="hasNewVersion" target="_blank" href="https://github.com/darthrater78/dockge/releases/tag/v2.1.0" class="btn btn-warning me-3">
+            <a v-if="hasNewVersion" target="_blank" rel="noopener noreferrer" href="https://github.com/darthrater78/dockge/releases/latest" class="btn btn-warning me-3">
                 <font-awesome-icon icon="arrow-alt-circle-up" /> {{ $t("newUpdate") }}
             </a>
 
@@ -82,6 +82,18 @@
                     </div>
                 </li>
             </ul>
+        </header>
+
+        <!-- Mobile header -->
+        <header v-else class="mobile-header d-flex align-items-center justify-content-between border-bottom">
+            <router-link to="/" class="d-flex align-items-center text-dark text-decoration-none">
+                <object class="bi me-2" width="30" height="30" data="/icon.svg" />
+                <span class="fs-5 title">Dockge</span>
+            </router-link>
+
+            <a v-if="hasNewVersion" target="_blank" rel="noopener noreferrer" href="https://github.com/darthrater78/dockge/releases/latest" class="btn btn-warning btn-sm">
+                <font-awesome-icon icon="arrow-alt-circle-up" /> {{ $t("newUpdate") }}
+            </a>
         </header>
 
         <!-- Mobile bottom navigation -->
@@ -230,6 +242,20 @@ main {
     padding-bottom: calc(60px + env(safe-area-inset-bottom));
 }
 
+.mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding: calc(8px + env(safe-area-inset-top)) 16px 8px;
+    margin-bottom: 12px;
+    background-color: #fff;
+
+    // The <object> logo would otherwise swallow taps meant for the home link
+    object {
+        pointer-events: none;
+    }
+}
+
 .title {
     font-weight: bold;
 }
@@ -330,6 +356,11 @@ main {
         span {
             color: #f0f6fc;
         }
+    }
+
+    .mobile-header {
+        background-color: $dark-header-bg;
+        border-bottom-color: $dark-header-bg !important;
     }
 
     .bottom-nav {
