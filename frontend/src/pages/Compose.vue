@@ -9,8 +9,8 @@
                 </span>
             </h1>
 
-            <div v-if="stack.isManagedByDockge" class="mb-3">
-                <div class="btn-group me-2" role="group">
+            <div v-if="stack.isManagedByDockge" class="stack-actions mb-3">
+                <div class="btn-group" role="group">
                     <button v-if="isEditMode" class="btn btn-primary" :disabled="processing" @click="deployStack">
                         <font-awesome-icon icon="rocket" class="me-1" />
                         {{ $t("deployStack") }}
@@ -60,7 +60,7 @@
                     {{ $t("deleteStack") }}
                 </button>
 
-                <button v-if="!isEditMode && !isAdd && active" class="btn btn-normal ms-2" :disabled="versionScanLoading" @click="scanVersionSync">
+                <button v-if="!isEditMode && !isAdd && active" class="btn btn-normal" :disabled="versionScanLoading" @click="scanVersionSync">
                     <font-awesome-icon icon="code-compare" class="me-1" />
                     {{ $t("driftCheck") }}
                 </button>
@@ -211,15 +211,14 @@
                     <!-- Combined Terminal Output -->
                     <div v-show="!isEditMode">
                         <h4 class="mb-3">{{ $t("terminal") }}</h4>
-                        <Terminal
-                            ref="combinedTerminal"
-                            class="mb-3 terminal"
+                        <TerminalPanel
+                            storage-key="dockge-stack-terminal-height"
+                            :default-height="315"
                             :name="combinedTerminalName"
                             :endpoint="endpoint"
                             :rows="combinedTerminalRows"
                             :cols="combinedTerminalCols"
-                            style="height: 315px;"
-                        ></Terminal>
+                        />
                     </div>
                 </div>
                 <div class="col-lg-6">
@@ -1015,6 +1014,32 @@ export default {
 
 .terminal {
     height: 200px;
+}
+
+.stack-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+
+    @media (max-width: 768px) {
+        // Full-width rows of evenly sized buttons instead of a ragged wrap
+        .btn-group {
+            width: 100%;
+
+            > .btn {
+                flex: 1 1 0;
+                padding-left: 6px;
+                padding-right: 6px;
+                white-space: nowrap;
+            }
+        }
+
+        > .btn {
+            flex: 1 1 0;
+            white-space: nowrap;
+        }
+    }
 }
 
 .editor-box {

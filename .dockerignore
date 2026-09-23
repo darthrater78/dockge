@@ -15,3 +15,5 @@ frontend
 .git
 .gitignore
 README.md
+.claude
+.github

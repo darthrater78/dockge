@@ -40,6 +40,7 @@ Starting from the upstream [louislam/dockge](https://github.com/louislam/dockge)
 | **v1.9.2** | Fork independence & security | Docker images from fork GHCR registry, dependency security fixes (mysql2, vite), CI cleanup |
 | **v2.0.0** | Port visibility | Configured-port badges and HOST badge in the stack list, cross-stack port conflict detection scoped per agent, dev CI workflow, pre-release Docker tag support |
 | **v2.1.0** | CI hardening, CVE fixes & mobile UX | SHA-pinned GitHub Actions, tag-on-default-branch release verification, Dependabot config; `npm overrides` closing Critical/High CVEs in `tar`/`lodash`/`glob` with no upstream fix available; resizable terminal panel; fixed mobile navigation (`isMobile` was referenced everywhere but never defined, hiding all nav on phones) |
+| **v2.2.0** | Expandable terminal, mobile polish & audit fixes | Terminal panels on the stack, console and container pages can be dragged taller or expanded to full screen; fixed terminals hiding their newest lines (xterm measured before the web font loaded); server pty now follows the panel size; mobile header and tidier stack actions; release workflow now requires passing CI and a matching tag; anti-framing headers (`DOCKGE_ALLOW_FRAMING` opt-out); private vulnerability reporting |
 
 ### How it worked
 
@@ -258,6 +259,16 @@ To require a CAPTCHA challenge on the login page, set both of the following envi
 
 Keys can be created in the [Cloudflare dashboard](https://developers.cloudflare.com/turnstile/get-started/).
 
+## Optional: Embedding Dockge in a dashboard
+
+By default Dockge refuses to be shown inside an iframe on another site (`X-Frame-Options: SAMEORIGIN`, `frame-ancestors 'self'`), because a page that frames it could trick you into clicking Docker actions. If you embed Dockge in a dashboard such as Home Assistant or Organizr, set:
+
+```
+      - DOCKGE_ALLOW_FRAMING=true
+```
+
+Only do this if Dockge is not reachable from untrusted networks.
+
 ## REST API
 
 Dockge v1.6.0 introduces a REST API for managing stacks programmatically. The API runs on the master node only — agents do not need any changes and continue to communicate via Socket.IO.
@@ -350,6 +361,34 @@ The API communicates with remote agents via Socket.IO. Agents running pre-1.6.0 
 **Agent credential encryption (v1.9.0):** Agent passwords are now encrypted at rest using AES-256-GCM. A one-time migration encrypts existing plaintext passwords on first startup. Remote agents do not need updating — the wire protocol is unchanged. However, rolling back the primary to a pre-1.9.0 version after migration will break agent authentication; back up the SQLite database before upgrading.
 
 ## Version History
+
+### 2.2.0 (2026-09-23)
+
+**Added**
+- Expandable terminal: every terminal panel (stack logs, console, container shell) has a drag handle (mouse, touch or arrow keys) and a full-screen toggle (Esc to restore); each page remembers its height
+- Compact header on mobile; stack action buttons wrap into even rows on narrow screens
+- `DOCKGE_ALLOW_FRAMING=true` to allow embedding Dockge in dashboards (see "Embedding Dockge in a dashboard")
+
+**Fixed**
+- Terminals no longer hide their newest lines below the panel: xterm measured its cells before the JetBrains Mono web font loaded and never re-measured
+- The server-side pty now follows the panel size (it stayed at its initial size, so full-screen programs drew at the wrong size)
+- REST API stack actions (`start`/`stop`/`restart`/`update`/`down`) now apply `global.env`, the stack `.env` and `compose.override.yaml`, the same as the UI
+- The "expand" icon on the stack page was never registered and rendered blank
+- The update-available link pointed at v2.1.0 instead of the latest release
+- A failed Docker build in the release could be reported as success (`env2arg.js` ignored the exit code)
+
+**Security**
+- Anti-framing headers (`X-Frame-Options: SAMEORIGIN`, `frame-ancestors 'self'`), `nosniff`, `Referrer-Policy`; `X-Powered-By` removed
+- Release workflow: default-branch check also applies to manual runs, the tag must match `package.json`, and CI must have passed for the tagged commit
+- Terminal resize requests, API paging and `POST /api/agents` input are validated; first-run setup can no longer race into two admin accounts
+- Healthcheck built with Go 1.27.1 (was 1.21.4); base images pinned by digest and watched by Dependabot
+- Security reports now go to this fork's private vulnerability reporting
+- `@xterm/xterm` pinned to stable 6.0.0 (was the floating `beta` tag)
+- `.claude/` and `.github/` excluded from the Docker build context (the image was shipping this repo's internal gate-state file)
+
+**CI**
+- Duplicate "CI Dev" workflow merged into CI; added actionlint workflow for workflow files
+
 
 ### 1.9.2
 
@@ -533,8 +572,11 @@ If you love this project, please consider giving it a ⭐.
 ### Bug Report
 https://github.com/darthrater78/dockge/issues
 
-### Ask for Help / Discussions
-https://github.com/darthrater78/dockge/discussions
+### Ask for Help
+https://github.com/darthrater78/dockge/issues
+
+### Security Issues
+Please report privately: https://github.com/darthrater78/dockge/security/advisories/new
 
 ### Translation
 If you want to translate Dockge into your language, please read [Translation Guide](https://github.com/darthrater78/dockge/blob/master/frontend/src/lang/README.md)
