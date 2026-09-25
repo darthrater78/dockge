@@ -251,94 +251,113 @@ Requirements:
 
 ### Basic
 
-- Default Stacks Directory: `/opt/stacks`
-- Default Port: 5001
+- Compose file and Dockge's data: `/opt/docker/dockge`
+- Stacks directory: `/opt/docker/stacks`
+- Port: 5001
 
-```
-# Create directories that store your stacks and stores Dockge's stack
-mkdir -p /opt/stacks /opt/dockge
-cd /opt/dockge
+```bash
+# Create the folders (needs root under /opt), make Dockge's folder yours, and go there
+sudo mkdir -p /opt/docker/dockge/data /opt/docker/stacks \
+  && sudo chown "$USER": /opt/docker/dockge && cd /opt/docker/dockge
 
-# Download the compose.yaml
+# Download the compose file (saved as compose.yaml)
 curl https://raw.githubusercontent.com/darthrater78/dockge/master/compose.yaml --output compose.yaml
 
-# Start the server
+# Start Dockge
 docker compose up -d
-
-# If you are using docker-compose V1 or Podman
-# docker-compose up -d
 ```
 
 Dockge is now running on http://localhost:5001
 
+Already running Dockge from another folder (such as `/opt/dockge` from older instructions)? Nothing needs to move; these paths are just the recommended layout for new installs.
+
 ### Advanced
 
-If you want to store your stacks in another directory, you can generate your compose.yaml file by using the following URL with custom query strings.
+To use a different stacks directory or port, generate a compose file with the [interactive generator](https://dockge.kuma.pet) or its URL, and save it in `/opt/docker/dockge`:
 
-```
-# Download your compose.yaml
-curl "https://dockge.kuma.pet/compose.yaml?port=5001&stacksPath=/opt/stacks" --output compose.yaml
-```
-
-- port=`5001`
-- stacksPath=`/opt/stacks`
-
-Also, once compose is generated/downloaded, add the `PUID` and `PGID` section below to your compose `environment:` section to set stack ownership, otherwise default is `root`
-
-```
-      # Both PUID and PGID must be set for it to do anything
-      - PUID=1000 # Set the stack file/dir ownership to this user
-      - PGID=1000 # Set the stack file/dir ownership to this group
+```bash
+curl "https://dockge.kuma.pet/compose.yaml?port=5001&stacksPath=/opt/docker/stacks" --output compose.yaml
 ```
 
-Interactive compose.yaml generator is available on: 
-https://dockge.kuma.pet
+Then set its `image:` to `ghcr.io/darthrater78/dockge:2.3.0` (the generator uses the upstream image). To set the owner of stack files, add under `environment:` (both are needed; the default is `root`):
 
-### -OR-
-Copy and paste your compose from the following:
-
-If you want to store your stacks in another directory, you can change the `DOCKGE_STACKS_DIR` environment variable and volumes.
-
-compose:
+```yaml
+      - PUID=1000
+      - PGID=1000
 ```
+
+### -OR- copy and paste
+
+Save this as `/opt/docker/dockge/compose.yaml` (create the folders first: `sudo mkdir -p /opt/docker/dockge/data /opt/docker/stacks && sudo chown "$USER": /opt/docker/dockge`), then run `docker compose up -d` in that folder:
+
+```yaml
 services:
   dockge:
     image: ghcr.io/darthrater78/dockge:2.3.0
     restart: unless-stopped
     ports:
-      # Host Port:Container Port
       - 5001:5001
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./data:/app/data
-        
-      # If you want to use private registries, you need to share the auth file with Dockge:
-      # - /root/.docker/:/root/.docker
-
-      # Stacks Directory
-      # Your stacks directory in the host (The paths inside container must be the same as the host)
-      # ⚠️ If you did it wrong, your data could end up be written into a wrong path.
-      # ✔️ CORRECT EXAMPLE: - /my-stacks:/my-stacks (Both paths match)
-      # ❌ WRONG EXAMPLE: - /docker:/my-stacks (Both paths do not match)
-      - /opt/stacks:/opt/stacks
+      - /opt/docker/dockge/data:/app/data
+      - /opt/docker/stacks:/opt/docker/stacks
     environment:
-      # Tell Dockge where your stacks directory is
-      - DOCKGE_STACKS_DIR=/opt/stacks
-      # Both PUID and PGID must be set for it to do anything
-      - PUID=1000 # Set the stack file/dir ownership to this user
-      - PGID=1000 # Set the stack file/dir ownership to this group
+      - DOCKGE_STACKS_DIR=/opt/docker/stacks
+
+# ports: 5001 is Dockge's web UI (host:container).
+#   To listen on one address only: 192.168.1.10:5001:5001
+# /var/run/docker.sock: lets Dockge run docker compose for your stacks
+#   (root-equivalent access to Docker).
+# /opt/docker/dockge/data: Dockge's database and settings (login, agents,
+#   API keys). Back this folder up.
+# /opt/docker/stacks: your stacks. Both sides MUST be the same full path and
+#   MUST match DOCKGE_STACKS_DIR, or stack files end up in the wrong place.
+# DOCKGE_STACKS_DIR: where Dockge looks for stacks (same path as above).
+# Optional, under environment:
+#   - PUID=1000 and - PGID=1000: owner of stack files (both needed; default root)
+#   - TURNSTILE_SITE_KEY=... and - TURNSTILE_SECRET_KEY=...: CAPTCHA on login
+#   - DOCKGE_ALLOW_FRAMING=true: allow embedding in a dashboard iframe
+# Optional, under volumes:
+#   - /root/.docker/:/root/.docker: registry logins for private images
 ```
 
 ## How to Update
 
-The compose examples pin a release (`ghcr.io/darthrater78/dockge:2.3.0`) so an update never happens by surprise. To update, change the tag in your `compose.yaml` to the [latest release](https://github.com/darthrater78/dockge/releases/latest), then:
+The compose file pins a release (`ghcr.io/darthrater78/dockge:2.3.0`) so an update never happens by surprise.
+
+### One-line update
+
+Dockge can't update itself (restarting its own container would cut the update off halfway), so run this on the Docker host. Set `V` to the [latest release](https://github.com/darthrater78/dockge/releases/latest):
 
 ```bash
-cd /opt/dockge
-docker compose pull && docker compose up -d
+V=2.3.0; F=/opt/docker/dockge/compose.yaml
+S=; docker ps >/dev/null 2>&1 || S=sudo; $S docker pull ghcr.io/darthrater78/dockge:$V \
+  && $S sed -i.bak -E "s#(ghcr\.io/darthrater78/dockge:)[^[:space:]]+#\1$V#" "$F" \
+  && $S docker compose -f "$F" up -d dockge && $S docker compose -f "$F" ps dockge \
+  && echo "✅ Dockge updated to $V" || echo "❌ Update stopped: see the error above"
 ```
 
-Prefer to always run the newest release? Use `ghcr.io/darthrater78/dockge:latest` instead; the commands above then update you to whatever is current.
+1. **Pulls the new image first.** If that version doesn't exist, it stops before anything changes.
+2. **Changes only the image tag** in your compose file, keeping the original as `compose.yaml.bak`. Ports, volumes and environment are untouched.
+3. **Recreates the Dockge container** on the new image and shows its status. Your stacks keep running; only Dockge restarts.
+
+It works from any folder, and uses `sudo` automatically if your user isn't allowed to run `docker` directly. Roll back with `mv /opt/docker/dockge/compose.yaml.bak /opt/docker/dockge/compose.yaml` and the same `docker compose -f … up -d dockge`.
+
+**Compose file somewhere else?** Ask Docker where it was started from, and use that path as `F`:
+
+```bash
+sudo docker ps -a \
+  --format '{{.Names}}  →  {{.Label "com.docker.compose.project.config_files"}}' \
+  | grep -i dockge
+```
+
+### Always on the newest release
+
+Prefer not to pin? Use `ghcr.io/darthrater78/dockge:latest` in your compose file, then update with:
+
+```bash
+cd /opt/docker/dockge && docker compose pull && docker compose up -d
+```
 
 ## Optional: Cloudflare Turnstile CAPTCHA
 
@@ -724,7 +743,7 @@ The main objective of Dockge is to try to use the docker `compose.yaml` for ever
 Yes, you can. However, you need to move your compose file into the stacks directory:
 
 1. Stop your stack
-2. Move your compose file into `/opt/stacks/<stackName>/compose.yaml`
+2. Move your compose file into `/opt/docker/stacks/<stackName>/compose.yaml` (your `DOCKGE_STACKS_DIR`)
 3. In Dockge, click the " Scan Stacks Folder" button in the top-right corner's dropdown menu
 4. Now you should see your stack in the list
 
