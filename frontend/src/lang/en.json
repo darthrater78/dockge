@@ -172,5 +172,18 @@
     "versionReverted": "Compose file reverted to previous version.",
     "scanAll": "Scan All",
     "driftCheckDescription": "Scan all stacks across all agents to detect image tag drift between compose files and running containers.",
-    "agentRequiresUpdate": "Agent requires v1.7.0+ for Compose Drift Check"
+    "agentRequiresUpdate": "Agent requires v1.7.0+ for Compose Drift Check",
+    "searchStacks": "Search stacks",
+    "clearSearch": "Clear search",
+    "all": "All",
+    "portConflicts": "Port conflicts",
+    "portConflictsFound": "{0} port conflict | {0} port conflicts",
+    "noStacksMatch": "No stacks match",
+    "notManaged": "Not managed",
+    "overview": "Overview",
+    "logs": "Logs",
+    "back": "Back",
+    "menu": "Menu",
+    "moreActions": "More actions",
+    "resizeStackList": "Drag to resize the stack list (double-click to reset)"
 }
