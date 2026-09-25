@@ -386,9 +386,7 @@ Only do this if Dockge is not reachable from untrusted networks.
 
 ## Optional: Home Assistant integration (HACS)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=darthrater78&repository=ha-dockge&category=integration)
-
-**[darthrater78/ha-dockge](https://github.com/darthrater78/ha-dockge)** is a Home Assistant integration that adds your Dockge stacks and containers to Home Assistant so you can watch and control them from there:
+**[darthrater78/ha-dockge](https://github.com/darthrater78/ha-dockge)** is a custom Home Assistant integration that adds your Dockge stacks and containers to Home Assistant so you can watch and control them from there:
 
 - A sensor for each container showing its state (running, exited, etc.), image and health
 - Start, Stop, Restart and Down buttons for each stack
@@ -397,8 +395,10 @@ Only do this if Dockge is not reachable from untrusted networks.
 
 **This fork is required.** The integration talks to Dockge through the [REST API](#rest-api), which the original Dockge does not have.
 
+The integration is not in the default HACS store. Add it to HACS as a custom repository:
+
 1. In Dockge, set an API key (`DOCKGE_API_KEY`, see [Authentication](#authentication)).
-2. In HACS, open the menu (three dots, top right) and choose **Custom repositories**. Add `https://github.com/darthrater78/ha-dockge` with category **Integration**, or click the button above.
+2. In HACS, open the menu (three dots, top right) and choose **Custom repositories**. Add `https://github.com/darthrater78/ha-dockge` with category **Integration**.
 3. Download **Dockge** in HACS and restart Home Assistant.
 4. Go to **Settings > Devices & Services > Add Integration**, search for **Dockge**, and enter your Dockge URL (for example `http://192.168.1.100:5001`) and the API key.
 
