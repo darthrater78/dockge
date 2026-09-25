@@ -1,4 +1,5 @@
 import { CREATED_FILE, CREATED_STACK, EXITED, RUNNING, UNKNOWN } from "../../common/util-common";
+import { hostPort, hostPortNumbers } from "../../common/compose-ports";
 
 /**
  * Shared stack-list helpers for the desktop sidebar (StackList) and the mobile list (MobileStackList).
@@ -6,25 +7,6 @@ import { CREATED_FILE, CREATED_STACK, EXITED, RUNNING, UNKNOWN } from "../../com
 
 // Stacks sort by status in this order, then by name
 const STATUS_ORDER = [ RUNNING, EXITED, CREATED_STACK, CREATED_FILE, UNKNOWN ];
-
-/**
- * Reduce a compose port mapping ("8080:80", "127.0.0.1:8443:443/udp", "53") to its host port.
- * @param {string} raw Port entry from compose.yaml
- * @returns {string} The host port
- */
-export function hostPort(raw : string) : string {
-    const stripped = raw.split("/")[0];
-    const lastColon = stripped.lastIndexOf(":");
-    if (lastColon === -1) {
-        return stripped;
-    }
-    const hostPart = stripped.substring(0, lastColon);
-    const ipColon = hostPart.indexOf(":");
-    if (ipColon !== -1) {
-        return hostPart.substring(ipColon + 1);
-    }
-    return hostPart;
-}
 
 /**
  * @param {object} stack A stack from $root.completeStackList
@@ -61,14 +43,25 @@ export function compareStacks(a, b) : number {
 }
 
 /**
- * Host ports published by more than one running stack, per endpoint ("current" for the local one).
+ * Host ports (as shown on the stack cards) that overlap a port published by more than one running stack, per
+ * endpoint ("current" for the local one). A range is included when any port in it conflicts.
  * @param {object[]} stacks All stacks
  * @returns {Record<string, Set<string>>} Conflicting host ports by endpoint
  */
 export function conflictingPortsByEndpoint(stacks) : Record<string, Set<string>> {
+    const users = portUsers(stacks);
     const result : Record<string, Set<string>> = {};
-    for (const { endpoint, port } of portConflicts(stacks)) {
-        (result[endpoint] ??= new Set()).add(port);
+    for (const stack of stacks) {
+        const endpoint = stack.endpoint || "current";
+        const byPort = users[endpoint];
+        if (!byPort) {
+            continue;
+        }
+        for (const raw of stack.ports ?? []) {
+            if (hostPortNumbers(raw).some(port => (byPort.get(port)?.length ?? 0) > 1)) {
+                (result[endpoint] ??= new Set()).add(hostPort(raw));
+            }
+        }
     }
     return result;
 }
@@ -102,29 +95,56 @@ export function stackUrl(stack) : string {
 }
 
 /**
- * Every host port published by more than one running stack, with the stacks that publish it.
  * @param {object[]} stacks All stacks
- * @returns {{ endpoint: string, port: string, stacks: string[] }[]} Conflicts, sorted by endpoint then port
+ * @returns {Record<string, Map<number, string[]>>} Running stacks publishing each host port, per endpoint
  */
-export function portConflicts(stacks) {
-    const users : Record<string, Record<string, string[]>> = {};
+function portUsers(stacks) : Record<string, Map<number, string[]>> {
+    const users : Record<string, Map<number, string[]>> = {};
     for (const stack of stacks) {
         if (stack.status !== RUNNING) {
             continue;
         }
-        const endpoint = stack.endpoint || "current";
-        users[endpoint] ??= {};
-        for (const port of new Set(stackPorts(stack))) {
-            (users[endpoint][port] ??= []).push(stack.name);
+        const byPort = users[stack.endpoint || "current"] ??= new Map();
+        for (const port of new Set((stack.ports ?? []).flatMap(hostPortNumbers))) {
+            let names = byPort.get(port);
+            if (!names) {
+                names = [];
+                byPort.set(port, names);
+            }
+            names.push(stack.name);
         }
     }
+    return users;
+}
+
+/**
+ * Every host port published by more than one running stack, with the stacks that publish it. Consecutive ports
+ * shared by the same stacks are merged into one range ("8000-8010").
+ * @param {object[]} stacks All stacks
+ * @returns {{ endpoint: string, port: string, stacks: string[] }[]} Conflicts, sorted by endpoint then port
+ */
+export function portConflicts(stacks) {
     const result : { endpoint: string, port: string, stacks: string[] }[] = [];
-    for (const [ endpoint, ports ] of Object.entries(users)) {
-        for (const [ port, names ] of Object.entries(ports)) {
-            if (names.length > 1) {
-                result.push({ endpoint, port, stacks: names.sort() });
+    for (const [ endpoint, byPort ] of Object.entries(portUsers(stacks))) {
+        const shared = [ ...byPort.entries() ]
+            .filter(([ , names ]) => names.length > 1)
+            .map(([ port, names ]) => ({ port, names: names.sort() }))
+            .sort((a, b) => a.port - b.port);
+        let run : { start: number, end: number, names: string[] } | null = null;
+        const flush = () => {
+            if (run) {
+                result.push({ endpoint, port: run.start === run.end ? String(run.start) : `${run.start}-${run.end}`, stacks: run.names });
+            }
+        };
+        for (const { port, names } of shared) {
+            if (run && port === run.end + 1 && names.join("\n") === run.names.join("\n")) {
+                run.end = port;
+            } else {
+                flush();
+                run = { start: port, end: port, names };
             }
         }
+        flush();
     }
-    return result.sort((a, b) => a.endpoint.localeCompare(b.endpoint) || Number(a.port) - Number(b.port) || a.port.localeCompare(b.port));
+    return result.sort((a, b) => a.endpoint.localeCompare(b.endpoint) || parseInt(a.port) - parseInt(b.port));
 }

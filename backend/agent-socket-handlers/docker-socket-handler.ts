@@ -5,6 +5,7 @@ import { Stack } from "../stack";
 import { AgentSocket } from "../../common/agent-socket";
 import { scanStack, scanAllStacks, syncComposeFile } from "../compose-version-sync";
 import { VersionSyncHistoryService } from "../version-sync-history-service";
+import { findPortConflicts } from "../port-conflicts";
 
 export class DockerSocketHandler extends AgentSocketHandler {
     create(socket : DockgeSocket, server : DockgeServer, agentSocket : AgentSocket) {
@@ -37,6 +38,22 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     msgi18n: true,
                 }, callback);
                 server.sendStackList();
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
+        // Ports the edited stack would publish that another stack or a running container already uses
+        agentSocket.on("checkPortConflicts", async (name : unknown, composeYAML : unknown, composeENV : unknown, composeOverrideYAML : unknown, callback) => {
+            try {
+                checkLogin(socket);
+                if (typeof(name) !== "string" || typeof(composeYAML) !== "string" || typeof(composeENV) !== "string" || typeof(composeOverrideYAML) !== "string") {
+                    throw new ValidationError("Invalid arguments");
+                }
+                callbackResult({
+                    ok: true,
+                    conflicts: await findPortConflicts(server, name, composeYAML, composeENV, composeOverrideYAML),
+                }, callback);
             } catch (e) {
                 callbackError(e, callback);
             }

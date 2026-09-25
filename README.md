@@ -16,6 +16,8 @@ A fancy, easy-to-use and reactive self-hosted docker compose.yaml stack-oriented
 
 Built on Louis's original design, 2.3.0 adds a redesigned phone layout, a resizable stack list on desktop, port conflicts you can't miss, and a Compose Drift Check that works everywhere. Full list in the [release notes](#release-notes).
 
+**2.3.1** catches the port conflicts 2.3.0 could miss (ports set through `.env` variables, `compose.override.yaml`, port ranges) and checks your ports when you Save or Deploy a stack. [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.3.1)
+
 <a id="mobile"></a>
 
 ### 📱 Mobile
@@ -125,6 +127,7 @@ Starting from [Chris Cooper's fork](https://github.com/cmcooper1980/dockge) of [
 | **v2.1.0** | CI hardening, CVE fixes & mobile UX | SHA-pinned GitHub Actions, tag-on-default-branch release verification, Dependabot config; `npm overrides` closing Critical/High CVEs in `tar`/`lodash`/`glob` with no upstream fix available; resizable terminal panel; fixed mobile navigation (`isMobile` was referenced everywhere but never defined, hiding all nav on phones) |
 | **v2.2.0** | Expandable terminal, mobile polish & audit fixes | Terminal panels on the stack, console and container pages can be dragged taller or expanded to full screen; fixed terminals hiding their newest lines (xterm measured before the web font loaded); server pty now follows the panel size; mobile header and tidier stack actions; release workflow now requires passing CI and a matching tag; anti-framing headers (`DOCKGE_ALLOW_FRAMING` opt-out); private vulnerability reporting |
 | **v2.3.0** | Mobile redesign, resizable desktop list & fast drift scan | Phone layout rebuilt around find → edit → act: searchable stack list with status filters and collapsible per-agent sections, stack page with Overview / Compose / Logs tabs and a bottom action bar; port-conflict banner naming the ports and stacks; conflicting ports no longer hidden behind the "+N" badge; resizable stack list on desktop with port badges that fit its width; Compose Drift Check reachable on mobile and no longer times out on larger hosts (docker queried once per scan instead of per stack and container); `:dev` GHCR channel for branch builds |
+| **v2.3.1** | Port conflicts you couldn't see | Ports written as `${VAR}` are read with the values from the stack's `.env` and `global.env`, ports in `compose.override.yaml` count, and port ranges are matched port by port; Save and Deploy now warn when a host port is already used by another stack (running or not) or by a running container outside any stack |
 
 ### How it worked
 
@@ -212,6 +215,7 @@ Dockge itself is Louis Lam's project. This fork (by way of [Chris Cooper's fork]
 - 📱 (2.3.0 🆕) Mobile-first phone layout — find a stack, edit it, act on it and watch its logs, all within thumb reach ([details](#mobile))
 - ↔️ (2.3.0 🆕) Resizable stack list on desktop, with port badges that fill whatever width you give it ([details](#desktop))
 - 🚦 (2.3.0 🆕) Port conflict banner — every host port published by more than one running stack, and which stacks they are
+- 🛑 (2.3.1 🆕) Port check on Save and Deploy — warns when a host port is already used by another stack (running or not) or a running container, including ports set through `.env` variables, `compose.override.yaml` and port ranges
 - 🧑‍💼 Manage your `compose.yaml` files
   - Create/Edit/Start/Stop/Restart/Update/Delete
 - ⌨️ Interactive Editor for `compose.yaml`
@@ -279,7 +283,7 @@ To use a different stacks directory or port, generate a compose file with the [i
 curl "https://dockge.kuma.pet/compose.yaml?port=5001&stacksPath=/opt/docker/stacks" --output compose.yaml
 ```
 
-Then set its `image:` to `ghcr.io/darthrater78/dockge:2.3.0` (the generator uses the upstream image). To set the owner of stack files, add under `environment:` (both are needed; the default is `root`):
+Then set its `image:` to `ghcr.io/darthrater78/dockge:2.3.1` (the generator uses the upstream image). To set the owner of stack files, add under `environment:` (both are needed; the default is `root`):
 
 ```yaml
       - PUID=1000
@@ -293,7 +297,7 @@ Save this as `/opt/docker/dockge/compose.yaml` (create the folders first: `sudo 
 ```yaml
 services:
   dockge:
-    image: ghcr.io/darthrater78/dockge:2.3.0
+    image: ghcr.io/darthrater78/dockge:2.3.1
     restart: unless-stopped
     ports:
       - 5001:5001
@@ -323,14 +327,14 @@ services:
 
 ## How to Update
 
-The compose file pins a release (`ghcr.io/darthrater78/dockge:2.3.0`) so an update never happens by surprise.
+The compose file pins a release (`ghcr.io/darthrater78/dockge:2.3.1`) so an update never happens by surprise.
 
 ### One-line update
 
 Dockge can't update itself (restarting its own container would cut the update off halfway), so run this on the Docker host. Set `V` to the [latest release](https://github.com/darthrater78/dockge/releases/latest):
 
 ```bash
-V=2.3.0; F=/opt/docker/dockge/compose.yaml
+V=2.3.1; F=/opt/docker/dockge/compose.yaml
 S=; docker ps >/dev/null 2>&1 || S=sudo; $S docker pull ghcr.io/darthrater78/dockge:$V \
   && $S sed -i.bak -E "s#(ghcr\.io/darthrater78/dockge:)[^[:space:]]+#\1$V#" "$F" \
   && $S docker compose -f "$F" up -d dockge && $S docker compose -f "$F" ps dockge \
@@ -473,11 +477,25 @@ The API communicates with remote agents via Socket.IO. Agents running pre-1.6.0 
 
 **Compose Drift Check requires v1.7.0 on all instances.** The master Dockge and every agent must run v1.7.0 or later for Compose Drift Check to work. The scan and sync commands are registered as new socket events (`scanVersionSync`, `syncVersion`, `syncAllVersions`, `revertVersionSync`) — agents running older versions will not respond to these events. The global scan on the Home page (on phones: ☰ → Compose Drift Check, or the button beside the stack search) only contacts agents that are online; offline or pre-1.7.0 agents are skipped with a warning.
 
+**Save/Deploy port check (v2.3.1):** a web UI check (the REST API deploys without it). It runs on the agent that owns the stack (new socket event `checkPortConflicts`). An agent older than 2.3.1 does not answer it, so the save goes ahead after 5 seconds without a warning.
+
 **Agent credential encryption (v1.9.0):** Agent passwords are now encrypted at rest using AES-256-GCM. A one-time migration encrypts existing plaintext passwords on first startup. Remote agents do not need updating — the wire protocol is unchanged. However, rolling back the primary to a pre-1.9.0 version after migration will break agent authentication; back up the SQLite database before upgrading.
 
 ## Version History
 
 <a id="release-notes"></a>
+
+### 2.3.1 (2026-09-25)
+
+**Added**
+- Save and Deploy check the stack's host ports first. If another stack on the same agent publishes one (running or not), or a running container does (including stacks not managed by Dockge and plain `docker run` containers), a dialog lists each port and who uses it, with **Save anyway** / **Deploy anyway**. Agents older than 2.3.1 don't answer the check; after 5 seconds the save goes ahead as before
+
+**Fixed**
+- Port conflicts were missed when the port came from a variable: `${VAR}`, `${VAR:-default}` and `$VAR` are now filled in from `global.env` and the stack's `.env`, the same way docker compose does
+- Ports declared in `compose.override.yaml` were ignored
+- Port ranges (`8000-8010:8000-8010`) were compared as text, so an overlap with `8005` went unnoticed; ranges are now matched port by port, and a conflict inside a range is shown as that range
+- A port with no host side (`- "3000"`, which gets a random host port) no longer counts as a conflict
+- IPv6 host bindings (`[::1]:8080:80`) show the right host port
 
 ### 2.3.0 (2026-09-25)
 
