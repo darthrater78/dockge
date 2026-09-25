@@ -426,6 +426,20 @@
                 </template>
             </nav>
 
+            <!-- Port conflict check before Save / Deploy -->
+            <BModal v-model="showPortConflictDialog" :title="$t('portInUseTitle')" :cancelTitle="$t('cancel')" :okTitle="$t(pendingPortAction === 'deploy' ? 'deployAnyway' : 'saveAnyway')" okVariant="warning" @ok="runPendingPortAction">
+                <p>{{ $t("portInUseIntro") }}</p>
+                <ul class="ps-3">
+                    <li v-for="c in portConflictList" :key="c.port">
+                        <strong>{{ c.port }}</strong>:
+                        <template v-for="(user, i) in c.users" :key="user.name">
+                            {{ user.name }} ({{ $t(user.kind === "container" ? "portUserContainer" : user.running ? "portUserRunning" : "portUserStopped") }})<span v-if="i < c.users.length - 1">, </span>
+                        </template>
+                    </li>
+                </ul>
+                <p class="mb-0 small">{{ $t("portInUseHint") }}</p>
+            </BModal>
+
             <!-- Delete Dialog -->
             <BModal v-model="showDeleteDialog" :cancelTitle="$t('cancel')" :okTitle="$t('deleteStack')" okVariant="danger" @ok="deleteDialog">
                 {{ $t("deleteStackMsg") }}
@@ -521,6 +535,9 @@ export default {
             envsubstJSONConfig: {},
             yamlError: "",
             processing: true,
+            showPortConflictDialog: false,
+            portConflictList: [],
+            pendingPortAction: null,
             showProgressTerminal: false,
             progressTerminalRows: PROGRESS_TERMINAL_ROWS,
             combinedTerminalRows: COMBINED_TERMINAL_ROWS,
@@ -850,7 +867,60 @@ export default {
             });
         },
 
+        /**
+         * Ask the agent which host ports of the edited stack are already used by another stack (running or not) or
+         * by a running container, and confirm before going on. An agent without this check (older version) or an
+         * error never blocks the save.
+         * @param {"save" | "deploy"} action What to run once cleared
+         * @returns {void}
+         */
+        checkPortsThen(action) {
+            this.processing = true;
+            let settled = false;
+            const settle = (conflicts) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                this.processing = false;
+                if (conflicts.length > 0) {
+                    this.portConflictList = conflicts;
+                    this.pendingPortAction = action;
+                    this.showPortConflictDialog = true;
+                } else {
+                    this.runPortAction(action);
+                }
+            };
+            const timeout = setTimeout(() => settle([]), 5000);
+            this.$root.emitAgent(this.stack.endpoint, "checkPortConflicts", this.stack.name || "", this.stack.composeYAML, this.stack.composeENV, this.stack.composeOverrideYAML || "", (res) => {
+                clearTimeout(timeout);
+                settle(res?.ok && Array.isArray(res.conflicts) ? res.conflicts : []);
+            });
+        },
+
+        runPortAction(action) {
+            if (action === "deploy") {
+                this.doDeployStack();
+            } else {
+                this.doSaveStack();
+            }
+        },
+
+        runPendingPortAction() {
+            const action = this.pendingPortAction;
+            this.pendingPortAction = null;
+            this.runPortAction(action);
+        },
+
         deployStack() {
+            this.checkPortsThen("deploy");
+        },
+
+        saveStack() {
+            this.checkPortsThen("save");
+        },
+
+        doDeployStack() {
             this.processing = true;
             this.showLogs();
 
@@ -894,7 +964,7 @@ export default {
             });
         },
 
-        saveStack() {
+        doSaveStack() {
             this.processing = true;
 
             this.$root.emitAgent(this.stack.endpoint, "saveStack", this.stack.name, this.stack.composeYAML, this.stack.composeENV, this.stack.composeOverrideYAML || "", this.isAdd, (res) => {
