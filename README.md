@@ -384,6 +384,26 @@ By default Dockge refuses to be shown inside an iframe on another site (`X-Frame
 
 Only do this if Dockge is not reachable from untrusted networks.
 
+## Optional: Home Assistant integration (HACS)
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=darthrater78&repository=ha-dockge&category=integration)
+
+**[darthrater78/ha-dockge](https://github.com/darthrater78/ha-dockge)** is a Home Assistant integration that adds your Dockge stacks and containers to Home Assistant so you can watch and control them from there:
+
+- A sensor for each container showing its state (running, exited, etc.), image and health
+- Start, Stop, Restart and Down buttons for each stack
+- `dockge.start_stack`, `dockge.stop_stack`, `dockge.restart_stack` and `dockge.system_prune` services for automations
+- Support for multiple Dockge agents, each shown as its own device
+
+**This fork is required.** The integration talks to Dockge through the [REST API](#rest-api), which the original Dockge does not have.
+
+1. In Dockge, set an API key (`DOCKGE_API_KEY`, see [Authentication](#authentication)).
+2. In HACS, open the menu (three dots, top right) and choose **Custom repositories**. Add `https://github.com/darthrater78/ha-dockge` with category **Integration**, or click the button above.
+3. Download **Dockge** in HACS and restart Home Assistant.
+4. Go to **Settings > Devices & Services > Add Integration**, search for **Dockge**, and enter your Dockge URL (for example `http://192.168.1.100:5001`) and the API key.
+
+Use an `https://` URL where you can: the API key is sent with every request. For a dashboard card, see [Dockge Card](https://github.com/darthrater78/dockge-card).
+
 <a id="rest-api"></a>
 
 ## REST API
