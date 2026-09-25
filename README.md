@@ -6,7 +6,90 @@
 
 A fancy, easy-to-use and reactive self-hosted docker compose.yaml stack-oriented manager.
 
+> **Dockge is [Louis Lam](https://github.com/louislam)'s project** (he also created [Uptime Kuma](https://github.com/louislam/uptime-kuma)). The compose manager, the reactive real-time UI, the interactive terminal and multi-agent support are all his work.
+>
+> This repository is a fork of [Chris Cooper's fork](https://github.com/cmcooper1980/dockge) (cmcooper1980/dockge), which is itself based on [louislam/dockge](https://github.com/louislam/dockge). The [REST API](#rest-api) framework comes from [finder39's fork](https://github.com/finder39/dockge) ("Dockge Managed"). The sections below describe what this fork adds on top of that work. If you like Dockge, please ⭐ the [original project](https://github.com/louislam/dockge) too.
+
 [![GitHub Repo stars](https://img.shields.io/github/stars/darthrater78/dockge?logo=github&style=flat)](https://github.com/darthrater78/dockge) [![GitHub release (latest by date)](https://img.shields.io/github/v/release/darthrater78/dockge?label=release)](https://github.com/darthrater78/dockge/releases) [![GitHub last commit (branch)](https://img.shields.io/github/last-commit/darthrater78/dockge/master?logo=github)](https://github.com/darthrater78/dockge/commits/master/)
+
+## 🆕 What's new in this fork: 2.3.0
+
+Built on Louis's original design, 2.3.0 adds a redesigned phone layout, a resizable stack list on desktop, port conflicts you can't miss, and a Compose Drift Check that works everywhere. Full list in the [release notes](#release-notes).
+
+<a id="mobile"></a>
+
+### 📱 Mobile
+
+On a phone, Dockge is built around one job: **find a stack → open it → edit it or act on it → watch what happens.**
+
+<p align="center">
+  <img src="docs/images/mobile-flow.gif" width="300" alt="Searching for a stack, opening it, restarting it and watching the logs on a phone" />
+</p>
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/images/mobile-stack-list.png" width="240" alt="Mobile stack list with search, filters and port conflict banner" /><br /><b>Find</b></td>
+    <td align="center" width="33%"><img src="docs/images/mobile-stack-overview.png" width="240" alt="Stack overview tab with containers and bottom action bar" /><br /><b>Open</b></td>
+    <td align="center" width="33%"><img src="docs/images/mobile-stack-logs.png" width="240" alt="Logs tab filling the screen" /><br /><b>Watch</b></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/mobile-stack-edit.png" width="240" alt="Editing compose.yaml with Deploy, Save and Discard" /><br /><b>Edit</b></td>
+    <td align="center"><img src="docs/images/mobile-stack-menu.png" width="240" alt="More actions menu: Update, Compose Drift Check, Down, Delete" /><br /><b>More actions</b></td>
+    <td align="center"><img src="docs/images/mobile-drift-check.png" width="240" alt="Compose Drift Check results as cards" /><br /><b>Drift check</b></td>
+  </tr>
+</table>
+
+- **The stack list is the home screen.** Search by stack name, agent or port; filter by status (Active / Exited / Inactive, with counts) or by **Port conflicts**. Each stack is one card: status, name and its host ports, conflicting ports first and in red.
+- **One section per agent.** With more than one Dockge agent, stacks are grouped under a collapsible header per agent showing running / total counts. Sections start collapsed; searching or filtering opens them so matches are never hidden.
+- **Port conflict banner** at the top of the list names each conflicting port and the stacks publishing it (tap a name to open that stack).
+- **Stack page:** a top bar with back, name and status, and a ⋮ menu for the less common actions (Update, Compose Drift Check, Down, Delete). Three tabs:
+  - **Overview:** which agent the stack runs on, its URLs, and each container with its status, ports and Bash / Restart / Stop.
+  - **Compose:** `compose.yaml`, `.env` and `compose.override.yaml` when present.
+  - **Logs:** the combined stack log, filling the screen (expandable to full screen).
+- **Bottom action bar**, where your thumb is: **Start** or **Restart**, **Stop**, **Update**, **Edit**. While editing it becomes **Deploy**, **Save** and **Discard**. Any action switches to the Logs tab so you see its output live, and the tab shows a dot while it runs.
+- **Menu (☰)** for Stacks, Overview, Compose Drift Check, Console, Settings, Scan Stacks Folder and Logout, so the bottom of the screen is free for the stack actions.
+- **Compose Drift Check** is one tap away (the button beside the search box); on a phone its results are cards with the compose and running image and a Sync button.
+
+<a id="desktop"></a>
+
+### 🖥️ Desktop
+
+**Resizable stack list.** Drag the handle between the stack list and the page to make the list wider or narrower (arrow keys work when the handle is focused; double-click resets it). The width is remembered. Port badges show as many ports as fit the current width, with the rest behind "+N", and a conflicting port is always shown first. When the list gets narrow, the Compose Drift Check button shrinks to its icon so the search box keeps its room.
+
+<p align="center">
+  <img src="docs/images/desktop-sidebar-resize.gif" width="760" alt="Dragging the stack list wider and narrower; port badges re-fit as it moves" />
+</p>
+
+**Resizable terminals** (since 2.2.0). Every terminal panel (stack logs, console, container shell) has a drag handle to make it taller and a button to expand it to full screen; Esc restores it. Each page remembers its own height.
+
+<p align="center">
+  <img src="docs/images/desktop-terminal-resize.gif" width="760" alt="Dragging a stack's terminal taller, expanding it to full screen and restoring it" />
+</p>
+
+**Port conflicts at a glance.** The banner above the stack list lists every host port that more than one running stack publishes, per agent, with links to the stacks involved.
+
+<p align="center">
+  <img src="docs/images/desktop-stack.png" width="760" alt="Desktop stack page with the port conflict banner above the stack list" />
+</p>
+
+<a id="drift-check"></a>
+
+### 🔄 Compose Drift Check
+
+Compose Drift Check (added in this fork in 1.7.0) finds services whose `compose.yaml` pins a different image tag than the container actually running, and **Sync** writes the running tag back into the compose file (comments preserved). In 2.3.0:
+
+- **"Scan All" no longer times out.** It used to run `docker ps` plus two `docker inspect` calls *per container, for every stack*, so any host with more than a handful of containers hit the 30-second limit. A scan now makes three docker calls in total and finishes in a couple of seconds.
+- **On phones** it's one tap from the stack list (the button beside the search box, or ☰ → Compose Drift Check), and per stack from the ⋮ menu.
+- **Results fit the space.** Each mismatch is a card (stack / service, compose image, running image, Sync) on phones and whenever the panel is too narrow for the table, so the Sync button is never scrolled out of view.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/images/desktop-drift-check.gif" width="480" alt="Scan All finds two mismatches; Sync fixes one" /><br /><b>Desktop:</b> Scan All, then Sync</td>
+    <td align="center"><img src="docs/images/mobile-drift-check.gif" width="260" alt="Drift check on a phone: scan, cards, Sync" /><br /><b>Phone:</b> from the stack list</td>
+  </tr>
+</table>
+
+---
 
 <img src="https://github.com/louislam/dockge/assets/1336778/26a583e1-ecb1-4a8d-aedf-76157d714ad7" width="900" alt="" />
 
@@ -20,7 +103,7 @@ View Video: https://youtu.be/AWAlOQeNpgU?t=48
 
 ### What Claude Code built in this fork
 
-Starting from the upstream [louislam/dockge](https://github.com/louislam/dockge) at v1.4.2, Claude Code implemented the following — each delivered as a branch, PR, security-reviewed build, and tagged release:
+Starting from [Chris Cooper's fork](https://github.com/cmcooper1980/dockge) of [louislam/dockge](https://github.com/louislam/dockge) (upstream v1.4.2), Claude Code implemented the following — each delivered as a branch, PR, security-reviewed build, and tagged release:
 
 | Version | What was built | Scope |
 |---------|---------------|-------|
@@ -41,6 +124,7 @@ Starting from the upstream [louislam/dockge](https://github.com/louislam/dockge)
 | **v2.0.0** | Port visibility | Configured-port badges and HOST badge in the stack list, cross-stack port conflict detection scoped per agent, dev CI workflow, pre-release Docker tag support |
 | **v2.1.0** | CI hardening, CVE fixes & mobile UX | SHA-pinned GitHub Actions, tag-on-default-branch release verification, Dependabot config; `npm overrides` closing Critical/High CVEs in `tar`/`lodash`/`glob` with no upstream fix available; resizable terminal panel; fixed mobile navigation (`isMobile` was referenced everywhere but never defined, hiding all nav on phones) |
 | **v2.2.0** | Expandable terminal, mobile polish & audit fixes | Terminal panels on the stack, console and container pages can be dragged taller or expanded to full screen; fixed terminals hiding their newest lines (xterm measured before the web font loaded); server pty now follows the panel size; mobile header and tidier stack actions; release workflow now requires passing CI and a matching tag; anti-framing headers (`DOCKGE_ALLOW_FRAMING` opt-out); private vulnerability reporting |
+| **v2.3.0** | Mobile redesign, resizable desktop list & fast drift scan | Phone layout rebuilt around find → edit → act: searchable stack list with status filters and collapsible per-agent sections, stack page with Overview / Compose / Logs tabs and a bottom action bar; port-conflict banner naming the ports and stacks; conflicting ports no longer hidden behind the "+N" badge; resizable stack list on desktop with port badges that fit its width; Compose Drift Check reachable on mobile and no longer times out on larger hosts (docker queried once per scan instead of per stack and container); `:dev` GHCR channel for branch builds |
 
 ### How it worked
 
@@ -109,7 +193,8 @@ This fork stands on the work of the upstream project and its community. The foll
 **REST API origin — [finder39/dockge](https://github.com/finder39/dockge):**
 The REST API framework (v1.6.0) was ported from finder39's Dockge fork ("Dockge Managed"), which implemented the original API router, auto-update scheduler, image update detection via skopeo, and update history tracking. Claude Code adapted the code to work with this fork's architecture and added backward compatibility for mixed-version agent deployments.
 
-**Fork collaborator — [Chris Cooper (cmcooper1980)](https://github.com/cmcooper1980):**
+**Base fork — [Chris Cooper (cmcooper1980)](https://github.com/cmcooper1980):**
+This repository is forked from [cmcooper1980/dockge](https://github.com/cmcooper1980/dockge). Chris's fork contributed, among other work:
 - Cloudflare Turnstile CAPTCHA integration on login
 - "Update All" button for bulk stack updates
 - v-html XSS vulnerability fixes and npm audit cleanup
@@ -118,12 +203,15 @@ The REST API framework (v1.6.0) was ported from finder39's Dockge fork ("Dockge 
 - Compose override editor refinements (dynamic titles, component naming)
 
 **Upstream — [Louis Lam (louislam)](https://github.com/louislam):**
-Dockge itself is Louis Lam's project. This fork is built on top of the [original Dockge](https://github.com/louislam/dockge) at v1.4.2, which includes the core compose manager, interactive terminal, multi-agent support, and the reactive real-time UI.
+Dockge itself is Louis Lam's project. This fork (by way of [Chris Cooper's fork](https://github.com/cmcooper1980/dockge)) is built on top of the [original Dockge](https://github.com/louislam/dockge) at v1.4.2, which includes the core compose manager, interactive terminal, multi-agent support, and the reactive real-time UI.
 
 ---
 
 ## ⭐ Features
 
+- 📱 (2.3.0 🆕) Mobile-first phone layout — find a stack, edit it, act on it and watch its logs, all within thumb reach ([details](#mobile))
+- ↔️ (2.3.0 🆕) Resizable stack list on desktop, with port badges that fill whatever width you give it ([details](#desktop))
+- 🚦 (2.3.0 🆕) Port conflict banner — every host port published by more than one running stack, and which stacks they are
 - 🧑‍💼 Manage your `compose.yaml` files
   - Create/Edit/Start/Stop/Restart/Update/Delete
 - ⌨️ Interactive Editor for `compose.yaml`
@@ -134,7 +222,7 @@ Dockge itself is Louis Lam's project. This fork is built on top of the [original
 - 🧩 (1.5.1 🆕) Compose override editor - Edit `compose.override.yaml` alongside your main compose file, when present
 - 🔐 (1.5.1 🆕) Optional Cloudflare Turnstile CAPTCHA on login
 - 🌐 (1.6.0 🆕) REST API for external automation (CI/CD, scripts, monitoring)
-- 🔄 (1.7.0 🆕) Compose Drift Check — detect and fix image tag drift between running containers and compose files
+- 🔄 (1.7.0 🆕) Compose Drift Check — detect and fix image tag drift between running containers and compose files (2.3.0: fast "Scan All", works on phones — [details](#drift-check))
 - 🔑 (1.9.0 🆕) Two-Factor Authentication (TOTP) — protect your account with app-based 2FA
 
 <img src="https://github.com/louislam/dockge/assets/1336778/cc071864-592e-4909-b73a-343a57494002" width=300 />
@@ -215,7 +303,7 @@ compose:
 ```
 services:
   dockge:
-    image: ghcr.io/darthrater78/dockge:latest
+    image: ghcr.io/darthrater78/dockge:2.3.0
     restart: unless-stopped
     ports:
       # Host Port:Container Port
@@ -243,10 +331,14 @@ services:
 
 ## How to Update
 
+The compose examples pin a release (`ghcr.io/darthrater78/dockge:2.3.0`) so an update never happens by surprise. To update, change the tag in your `compose.yaml` to the [latest release](https://github.com/darthrater78/dockge/releases/latest), then:
+
 ```bash
 cd /opt/dockge
 docker compose pull && docker compose up -d
 ```
+
+Prefer to always run the newest release? Use `ghcr.io/darthrater78/dockge:latest` instead; the commands above then update you to whatever is current.
 
 ## Optional: Cloudflare Turnstile CAPTCHA
 
@@ -269,7 +361,11 @@ By default Dockge refuses to be shown inside an iframe on another site (`X-Frame
 
 Only do this if Dockge is not reachable from untrusted networks.
 
+<a id="rest-api"></a>
+
 ## REST API
+
+*The API framework is ported from [finder39/dockge](https://github.com/finder39/dockge) ("Dockge Managed"), which wrote the original API router, auto-update scheduler and update history; it was adapted to this fork's architecture in v1.6.0.*
 
 Dockge v1.6.0 introduces a REST API for managing stacks programmatically. The API runs on the master node only — agents do not need any changes and continue to communicate via Socket.IO.
 
@@ -356,11 +452,35 @@ The API communicates with remote agents via Socket.IO. Agents running pre-1.6.0 
 - Stack listing falls back to legacy call signatures
 - Unsupported agents are listed in the response so you know which nodes need upgrading
 
-**Compose Drift Check requires v1.7.0 on all instances.** The master Dockge and every agent must run v1.7.0 or later for Compose Drift Check to work. The scan and sync commands are registered as new socket events (`scanVersionSync`, `syncVersion`, `syncAllVersions`, `revertVersionSync`) — agents running older versions will not respond to these events. The global scan on the Home page only contacts agents that are online; offline or pre-1.7.0 agents are skipped with a warning.
+**Compose Drift Check requires v1.7.0 on all instances.** The master Dockge and every agent must run v1.7.0 or later for Compose Drift Check to work. The scan and sync commands are registered as new socket events (`scanVersionSync`, `syncVersion`, `syncAllVersions`, `revertVersionSync`) — agents running older versions will not respond to these events. The global scan on the Home page (on phones: ☰ → Compose Drift Check, or the button beside the stack search) only contacts agents that are online; offline or pre-1.7.0 agents are skipped with a warning.
 
 **Agent credential encryption (v1.9.0):** Agent passwords are now encrypted at rest using AES-256-GCM. A one-time migration encrypts existing plaintext passwords on first startup. Remote agents do not need updating — the wire protocol is unchanged. However, rolling back the primary to a pre-1.9.0 version after migration will break agent authentication; back up the SQLite database before upgrading.
 
 ## Version History
+
+<a id="release-notes"></a>
+
+### 2.3.0 (2026-09-25)
+
+**Changed**
+- Mobile layout redesigned around finding a stack, editing it and acting on it; the bottom navigation bar is gone
+  - Home is the stack list: search (name, agent or port), status filter chips with counts, one card per stack; with several agents, a collapsible section per agent (collapsed until opened or searched)
+  - Stack page: back / name / status bar with a ⋮ menu (Update, Compose Drift Check, Down, Delete), Overview / Compose / Logs tabs, and a bottom action bar (Start or Restart, Stop, Update, Edit; Deploy, Save, Discard while editing). Actions switch to the Logs tab to show their output
+  - Menu sheet (☰) for Stacks, Overview, Compose Drift Check, Console, Settings, Scan Stacks Folder and Logout
+  - Compose Drift Check button next to the search box; its results are cards (stack / service, compose vs running image, Sync) on phones and whenever the panel is too narrow for the table
+- Desktop: the stack list pane can be dragged wider or narrower (arrow keys on the handle; double-click resets); the width is remembered
+
+**Added**
+- Port conflict banner above the stack list naming each conflicting port and the stacks that publish it; "Port conflicts" filter on mobile
+- `v<x.y.z>-dev.<n>` tags may be released from a feature branch and publish `:dev` + the version tag; stable tags remain default-branch only
+- README: "What's new" section at the top with screenshots and GIFs of the mobile layout, desktop resizing and Compose Drift Check (`docs/images/`, kept out of the Docker image)
+- Compose quickstart (README and `compose.yaml`) pins the image to the release (`:2.3.0`) instead of `:latest`; "How to Update" explains both
+
+**Fixed**
+- A conflicting port past the third one was hidden behind the "+N" badge; conflicting ports now sort first and the badge turns red when it hides one
+- Duplicate host ports (e.g. `6881/tcp` and `6881/udp`) are shown once in the stack list
+- Desktop stack list shows as many port badges as fit the pane width (was a fixed three)
+- "Scan All" in Compose Drift Check timed out on hosts with more than a handful of containers: every stack re-ran `docker ps` plus two `docker inspect` calls per container. A scan now makes three docker calls in total
 
 ### 2.2.0 (2026-09-23)
 
@@ -560,6 +680,8 @@ Security hardening:
 
 
 ## Motivations
+
+*From Louis Lam's original README:*
 
 - I have been using Portainer for some time, but for the stack management, I am sometimes not satisfied with it. For example, sometimes when I try to deploy a stack, the loading icon keeps spinning for a few minutes without progress. And sometimes error messages are not clear.
 - Try to develop with ES Module + TypeScript

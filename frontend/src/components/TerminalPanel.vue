@@ -1,11 +1,11 @@
 <template>
     <div class="terminal-panel" :class="{ expanded }">
-        <div class="terminal-wrapper" :style="expanded ? null : { height: height + 'px' }">
+        <div class="terminal-wrapper" :style="wrapperStyle">
             <Terminal ref="terminal" class="terminal" v-bind="$attrs" />
         </div>
         <div class="terminal-toolbar">
             <div
-                v-if="!expanded"
+                v-if="!expanded && !fillHeight"
                 class="terminal-resize-handle"
                 role="separator"
                 aria-orientation="horizontal"
@@ -59,6 +59,11 @@ export default {
             type: Number,
             default: 410,
         },
+        /** A CSS height to fill instead of the user-resizable one (mobile). Disables the drag handle. */
+        fillHeight: {
+            type: String,
+            default: null,
+        },
     },
     data() {
         return {
@@ -67,6 +72,15 @@ export default {
             expanded: false,
             resizing: false,
         };
+    },
+
+    computed: {
+        wrapperStyle() {
+            if (this.expanded) {
+                return null;
+            }
+            return { height: this.fillHeight ?? `${this.height}px` };
+        },
     },
 
     created() {
