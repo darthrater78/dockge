@@ -153,18 +153,14 @@ function agentSupports(server: DockgeServer, endpoint: string): boolean {
     return server.serverAgentManager.supportsFeature(endpoint, "1.6.0");
 }
 
-function emitToAgent(server: DockgeServer, endpoint: string, eventName: string, ...args: unknown[]): Promise<Record<string, unknown>>;
-function emitToAgent(server: DockgeServer, endpoint: string, eventName: string, timeoutMs: number, ...args: unknown[]): Promise<Record<string, unknown>>;
+/** How long to wait for a remote agent's answer */
+const AGENT_TIMEOUT_MS = 30000;
+
 function emitToAgent(server: DockgeServer, endpoint: string, eventName: string, ...args: unknown[]): Promise<Record<string, unknown>> {
-    let timeoutMs = 30000;
-    if (typeof args[0] === "number") {
-        // Callers pass fixed values; clamp anyway so a timer can never be unbounded
-        timeoutMs = Math.min(Math.max(args.shift() as number, 1000), 300000);
-    }
     return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
             reject(new Error(`Timeout waiting for response from agent ${endpoint}`));
-        }, timeoutMs);
+        }, AGENT_TIMEOUT_MS);
 
         server.serverAgentManager.emitToEndpoint(endpoint, eventName, ...args, (result: Record<string, unknown>) => {
             clearTimeout(timeout);
