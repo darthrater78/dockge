@@ -699,7 +699,11 @@ export class Stack {
         if (!/^[a-z0-9][a-z0-9_-]*$/.test(stackName)) {
             throw new ValidationError("Invalid stack name");
         }
-        let dir = path.join(server.stacksDir, stackName);
+        const root = path.resolve(server.stacksDir);
+        const dir = path.resolve(root, stackName);
+        if (!dir.startsWith(root + path.sep)) {
+            throw new ValidationError("Invalid stack name");
+        }
 
         if (!skipFSOperations) {
             if (!await fileExists(dir) || !(await fsAsync.stat(dir)).isDirectory()) {
