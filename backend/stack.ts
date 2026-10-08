@@ -338,8 +338,19 @@ export class Stack {
         return this._composeOverrideFileName;
     }
 
+    /**
+     * The stack folder. Checked here, where every stack path is built, so a name that is not a plain
+     * folder name (`..`, `/`) can't point outside the stacks folder before validate() runs
+     * @returns Absolute path inside the stacks folder
+     * @throws ValidationError for a name that would leave the stacks folder
+     */
     get path() : string {
-        return path.join(this.server.stacksDir, this.name);
+        const root = path.resolve(this.server.stacksDir);
+        const dir = path.resolve(root, this.name);
+        if (!dir.startsWith(root + path.sep)) {
+            throw new ValidationError("Invalid stack name");
+        }
+        return dir;
     }
 
     get fullPath() : string {

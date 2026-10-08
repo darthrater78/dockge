@@ -688,6 +688,7 @@ Dockge can run as a regular user (`PUID`/`PGID`) and creates your stacks' bind-m
 - With `PUID`/`PGID`, registry logins live in `data/docker-config`; an existing `/root/.docker` mount is copied there once
 
 **Fixed**
+- Stack names are checked where every stack path is built, so a name such as `../x` sent to Save, Deploy or the port check can no longer make Dockge look outside the stacks folder before the name is validated. The REST API also ignores an `endpoint` query parameter that isn't a single value. Both were found by the new CodeQL scan; a login or API key was needed
 - A missing or mistyped top-level `services:` (for example `ervices:`) was silently "repaired" by the editor, which appended `services: {}` and let the broken file be saved and deployed. It is now shown as an error, and Save/Deploy check the YAML that is in the editor at that moment
 - A stack whose compose file docker rejects logged a full stack trace every few seconds while its page or the stack list was open. It is now logged once per error, and again only when the error changes or the stack recovers
 - The status of a stack that isn't in Dockge's stacks folder (for example one started by another Dockge on the same host) failed with `ENOENT`
