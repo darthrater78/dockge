@@ -6,6 +6,8 @@
 
 A fancy, easy-to-use and reactive self-hosted docker compose.yaml stack-oriented manager.
 
+<a href="https://github.com/darthrater78/dockge/releases"><img alt="Dev build status" src="https://raw.githubusercontent.com/darthrater78/dockge/readme-banner/banner.svg" /></a>
+
 > **Dockge is [Louis Lam](https://github.com/louislam)'s project** (he also created [Uptime Kuma](https://github.com/louislam/uptime-kuma)). The compose manager, the reactive real-time UI, the interactive terminal and multi-agent support are all his work.
 >
 > This repository is a fork of [Chris Cooper's fork](https://github.com/cmcooper1980/dockge) (cmcooper1980/dockge), which is itself based on [louislam/dockge](https://github.com/louislam/dockge). The [REST API](#rest-api) framework comes from [finder39's fork](https://github.com/finder39/dockge) ("Dockge Managed"). The sections below describe what this fork adds on top of that work. If you like Dockge, please ⭐ the [original project](https://github.com/louislam/dockge) too.
