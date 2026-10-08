@@ -263,8 +263,9 @@ Requirements:
 - Port: 5001
 
 ```bash
-# Create Dockge's folder (needs root under /opt), make it yours, and go there
-sudo mkdir -p /opt/docker/dockge && sudo chown "$USER": /opt/docker/dockge && cd /opt/docker/dockge
+# Create Dockge's folder and the stacks folder (needs root under /opt), make them yours, and go there
+sudo mkdir -p /opt/docker/dockge /opt/docker/stacks \
+  && sudo chown "$USER": /opt/docker/dockge /opt/docker/stacks && cd /opt/docker/dockge
 
 # Download the compose file (saved as compose.yaml)
 curl https://raw.githubusercontent.com/darthrater78/dockge/master/compose.yaml --output compose.yaml
@@ -273,7 +274,7 @@ curl https://raw.githubusercontent.com/darthrater78/dockge/master/compose.yaml -
 docker compose up -d
 ```
 
-Dockge is now running on http://localhost:5001, as user `1000:1000` (see [Running as a regular user](#runtime)). It creates `data/` and `/opt/docker/stacks` itself, and takes ownership of `/opt/docker` (the folder only, not what's in it) so it can create your apps' bind-mount folders there.
+Dockge is now running on http://localhost:5001, as user `1000:1000` (see [Running as a regular user](#runtime)). It creates `data/` itself, and takes ownership of `/opt/docker` (the folder only, not what's in it) so it can create your apps' bind-mount folders there.
 
 Already running Dockge from another folder (such as `/opt/dockge` from older instructions)? Nothing needs to move; these paths are just the recommended layout for new installs.
 
@@ -294,7 +295,7 @@ Then set its `image:` to `ghcr.io/darthrater78/dockge:2.4.0-dev.1` (the generato
 
 ### -OR- copy and paste
 
-Save this as `/opt/docker/dockge/compose.yaml` (create the folder first: `sudo mkdir -p /opt/docker/dockge && sudo chown "$USER": /opt/docker/dockge`), then run `docker compose up -d` in that folder:
+Save this as `/opt/docker/dockge/compose.yaml` (create the folders first: `sudo mkdir -p /opt/docker/dockge /opt/docker/stacks && sudo chown "$USER": /opt/docker/dockge /opt/docker/stacks`), then run `docker compose up -d` in that folder:
 
 ```yaml
 services:
