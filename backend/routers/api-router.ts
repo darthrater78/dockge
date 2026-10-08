@@ -302,7 +302,7 @@ export class ApiRouter extends Router {
                 const stackList = await Stack.getStackList(server, true);
                 // Each updateData() spawns `docker compose ps`; run a few at a time rather than one by one
                 await forEachWithConcurrency([ ...stackList.values() ], STACK_STATUS_CONCURRENCY, (stack) => stack.updateData());
-                for (const [name, stack] of stackList) {
+                for (const [ name, stack ] of stackList) {
                     stacks.push({
                         name,
                         status: STATUS_NAMES[stack.status] || "unknown",
@@ -444,14 +444,18 @@ export class ApiRouter extends Router {
                         return;
                     }
 
+                    const warnings : string[] = [];
                     for (const args of action.composeCommands) {
+                        if (args[0] === "up") {
+                            warnings.push(...stack.prepareBindMounts());
+                        }
                         await childProcessAsync.spawn("docker", stack.getComposeOptions(args[0], ...args.slice(1)), {
                             cwd: stack.path,
                             encoding: "utf-8",
                         });
                     }
 
-                    res.json({ ok: true, message: `Stack '${name}' ${action.pastTense}`, endpoint: "" });
+                    res.json({ ok: true, message: `Stack '${name}' ${action.pastTense}`, endpoint: "", ...(warnings.length ? { warnings } : {}) });
                 } catch (e) {
                     if (e instanceof ValidationError) {
                         res.status(404).json({ ok: false, error: "Stack not found" });
@@ -483,7 +487,7 @@ export class ApiRouter extends Router {
                     return;
                 }
 
-                const result = await childProcessAsync.spawn("docker", ["system", "prune", "-a", "-f"], {
+                const result = await childProcessAsync.spawn("docker", [ "system", "prune", "-a", "-f" ], {
                     encoding: "utf-8",
                 });
 

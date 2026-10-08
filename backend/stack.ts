@@ -23,6 +23,7 @@ import { InteractiveTerminal, Terminal } from "./terminal";
 import childProcessAsync from "promisify-child-process";
 import { Settings } from "./settings";
 import { ServiceData } from "../common/types";
+import { applyStackOwner, createBindMountDirs, permissionError, STACK_DIR_MODE, writeSecretFile } from "./stack-permissions";
 
 export class Stack {
 
@@ -40,6 +41,8 @@ export class Stack {
 
     protected static managedStackList: Map<string, Stack> = new Map();
     protected static globalENVCache? : { at : number, vars : Record<string, string> };
+    /** Last status error logged per stack, so a broken stack is logged once rather than on every poll */
+    protected static statusErrors : Map<string, string> = new Map();
 
     protected _services: Map<string, ServiceData> = new Map();
     protected _recreateNecessary: boolean = false;
@@ -178,7 +181,7 @@ export class Stack {
     }
 
     get composeArgs(): string[] {
-        let options = ["compose", "-f", path.join(this.path, this._composeFileName), "--project-directory", this.path];
+        let options = [ "compose", "-f", path.join(this.path, this._composeFileName), "--project-directory", this.path ];
         return options;
     }
 
@@ -188,7 +191,7 @@ export class Stack {
             return false;
         }
         try {
-            const result = await childProcessAsync.spawn("docker", [...this.composeArgs, "ps", "-q"], {
+            const result = await childProcessAsync.spawn("docker", [ ...this.composeArgs, "ps", "-q" ], {
                 cwd: this.path,
                 encoding: "utf-8",
             });
@@ -370,44 +373,151 @@ export class Stack {
             }
 
             // Create the stack folder
-            await fsAsync.mkdir(dir);
+            try {
+                await fsAsync.mkdir(dir, { mode: STACK_DIR_MODE });
+            } catch (e) {
+                throw permissionError(e, "create the stack folder", dir);
+            }
+            applyStackOwner(dir);
         } else {
             if (!await fileExists(dir)) {
                 throw new ValidationError("Stack not found");
             }
         }
 
-        // Write or overwrite the compose.yaml
-        fs.writeFileSync(path.join(dir, this._composeFileName), this.composeYAML);
-        if (process.env.PUID && process.env.PGID) {
-            const uid = Number(process.env.PUID);
-            const gid = Number(process.env.PGID);
-            fs.lchownSync(dir, uid, gid);
-            fs.chownSync(path.join(dir, this._composeFileName), uid, gid);
+        // Check the new files with docker compose before replacing anything, so an invalid file is
+        // rejected with compose's own message instead of being saved and failing on every status poll
+        try {
+            await this.validateCompose(dir);
+        } catch (e) {
+            if (isAdd) {
+                await fsAsync.rm(dir, { recursive: true,
+                    force: true });
+            }
+            throw e;
         }
+
+        // Write or overwrite the compose.yaml
+        const composePath = path.join(dir, this._composeFileName);
+        try {
+            fs.writeFileSync(composePath, this.composeYAML);
+        } catch (e) {
+            throw permissionError(e, "write", composePath);
+        }
+        applyStackOwner(composePath);
 
         const overridePath = path.join(dir, this._composeOverrideFileName);
 
         // Write or overwrite the compose override file
         // If override file is not existing and the composeOverrideYAML is empty, we don't need to write it
         if (await fileExists(overridePath) || this.composeOverrideYAML.trim() !== "") {
-            await fsAsync.writeFile(overridePath, this.composeOverrideYAML);
+            try {
+                await fsAsync.writeFile(overridePath, this.composeOverrideYAML);
+            } catch (e) {
+                throw permissionError(e, "write", overridePath);
+            }
+            applyStackOwner(overridePath);
         }
 
         // Write .env file only when the user explicitly provided env content
         if (this._composeENV !== undefined) {
-            const envPath = path.join(dir, ".env");
-            await fsAsync.writeFile(envPath, this._composeENV);
-            if (process.env.PUID && process.env.PGID) {
-                const uid = Number(process.env.PUID);
-                const gid = Number(process.env.PGID);
-                fs.chownSync(envPath, uid, gid);
+            writeSecretFile(path.join(dir, ".env"), this._composeENV);
+        }
+    }
+
+    /**
+     * Run `docker compose config` on the content about to be saved. The files are checked as hidden
+     * copies inside the stack folder, so relative paths (include, env_file, build) resolve as they will
+     * on `up`, and removed afterwards.
+     * @param dir Stack folder (exists)
+     * @throws ValidationError with compose's message when the files are invalid
+     */
+    protected async validateCompose(dir : string) {
+        const composeCheck = ".dockge-check.compose.yaml";
+        const overrideCheck = ".dockge-check.override.yaml";
+        const envCheck = ".dockge-check.env";
+        const written : string[] = [];
+        // Something with write access to the stack folder (a container mounting it) could plant a symlink
+        // under these names: remove whatever is there, then create exclusively so no link is followed
+        const write = (name : string, content : string) => {
+            const target = path.join(dir, name);
+            fs.rmSync(target, { force: true });
+            fs.writeFileSync(target, content, { mode: 0o600,
+                flag: "wx" });
+            written.push(name);
+        };
+
+        try {
+            write(composeCheck, this.composeYAML);
+            const args = [ "compose", "--project-directory", ".", "-f", composeCheck ];
+            if (this.composeOverrideYAML.trim() !== "") {
+                write(overrideCheck, this.composeOverrideYAML);
+                args.push("-f", overrideCheck);
+            }
+
+            // Same variable sources as getComposeOptions(): global.env first, then the stack's .env
+            const hasGlobalENV = fs.existsSync(path.join(this.server.stacksDir, "global.env"));
+            if (hasGlobalENV) {
+                args.push("--env-file", "../global.env");
+            }
+            if (this._composeENV !== undefined) {
+                write(envCheck, this._composeENV);
+                args.push("--env-file", envCheck);
+            } else if (hasGlobalENV && fs.existsSync(path.join(dir, ".env"))) {
+                args.push("--env-file", "./.env");
+            }
+            args.push("config", "--quiet");
+
+            await childProcessAsync.spawn("docker", args, {
+                cwd: dir,
+                encoding: "utf-8",
+                timeout: 20000,
+            });
+        } catch (e) {
+            const err = e as NodeJS.ErrnoException & { stderr?: string | Buffer };
+            if (err.code === "ENOENT" || err.code === "EACCES" || err.code === "EPERM" || err.code === "EEXIST") {
+                // No docker CLI, or the check files couldn't be written: save as before, compose reports on `up`
+                log.warn("stack", `${this.name}: compose check skipped (${err.code})`);
+                return;
+            }
+            const stderr = (err.stderr ?? "").toString().trim();
+            const message = stderr
+                .replaceAll(path.join(dir, composeCheck), this._composeFileName)
+                .replaceAll(composeCheck, this._composeFileName)
+                .replaceAll(path.join(dir, overrideCheck), this._composeOverrideFileName)
+                .replaceAll(overrideCheck, this._composeOverrideFileName)
+                .replaceAll(envCheck, ".env");
+            throw new ValidationError(`Not saved, docker compose rejected the file: ${message || String(e)}`);
+        } finally {
+            for (const name of written) {
+                fs.rmSync(path.join(dir, name), { force: true });
             }
         }
     }
 
+    /**
+     * Create missing bind-mount folders before `compose up` (relative ones, and absolute ones under
+     * DOCKGE_BIND_ROOTS or the stacks folder), so they belong to
+     * Dockge's user (or PUID/PGID) instead of being created as root by the Docker daemon.
+     * @param socket When given, each warning is sent to the UI as a toast
+     * @returns Warnings for folders that could not be prepared
+     */
+    prepareBindMounts(socket? : DockgeSocket) : string[] {
+        if (!this.isManagedByDockge) {
+            return [];
+        }
+        const warnings = createBindMountDirs(this.path, [ this.composeYAML, this.composeOverrideYAML ],
+            this.composeVariables(), this.server.bindRoots);
+        for (const msg of warnings) {
+            socket?.emitAgent("permissionWarning", { stackName: this.name,
+                msg });
+        }
+        return warnings;
+    }
+
     async deploy(socket : DockgeSocket) : Promise<number> {
         const terminalName = getComposeTerminalName(socket.endpoint, this.name);
+        this.prepareBindMounts(socket);
         let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("up", "-d", "--remove-orphans"), this.path);
         if (exitCode !== 0) {
             throw new Error("Failed to deploy, please check the terminal output for more information.");
@@ -636,6 +746,7 @@ export class Stack {
             return exitCode;
         }
 
+        this.prepareBindMounts(socket);
         exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("up", "-d", "--remove-orphans"), this.path);
         if (exitCode !== 0) {
             throw new Error("Failed to restart, please check the terminal output for more information.");
@@ -645,6 +756,7 @@ export class Stack {
 
     async start(socket: DockgeSocket) {
         const terminalName = getComposeTerminalName(socket.endpoint, this.name);
+        this.prepareBindMounts(socket);
         let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("up", "-d", "--remove-orphans"), this.path);
         if (exitCode !== 0) {
             throw new Error("Failed to start, please check the terminal output for more information.");
@@ -715,10 +827,21 @@ export class Stack {
         let statusList = new Map<string, Array<object>>();
 
         try {
-            let res = await childProcessAsync.spawn("docker", this.getComposeOptions("ps", "--format", "json"), {
-                cwd: this.path,
-                encoding: "utf-8",
-            });
+            // A stack not managed by Dockge (e.g. one listed by `docker compose ls` from another
+            // Dockge instance on the same host) has no folder under stacksDir, and spawning with a
+            // missing cwd fails with ENOENT. Query it by project name instead.
+            let res = this.isManagedByDockge
+                ? await childProcessAsync.spawn("docker", this.getComposeOptions("ps", "--format", "json"), {
+                    cwd: this.path,
+                    encoding: "utf-8",
+                })
+                : await childProcessAsync.spawn("docker", [ "compose", "-p", this.name, "ps", "--format", "json" ], {
+                    encoding: "utf-8",
+                });
+
+            if (Stack.statusErrors.delete(this.name)) {
+                log.info("getServiceStatusList", `${this.name}: status available again`);
+            }
 
             if (!res.stdout) {
                 return statusList;
@@ -750,13 +873,21 @@ export class Stack {
 
             return statusList;
         } catch (e) {
-            log.error("getServiceStatusList", e);
+            // The UI polls this every few seconds: log a broken stack once, and again only when the
+            // error changes, as one readable line instead of a stack trace per poll
+            const stderr = ((e as { stderr?: string | Buffer }).stderr ?? "").toString().trim();
+            const message = stderr || (e instanceof Error ? e.message : String(e));
+            if (Stack.statusErrors.get(this.name) !== message) {
+                Stack.statusErrors.set(this.name, message);
+                log.error("getServiceStatusList", `${this.name}: ${message}`);
+            }
             return statusList;
         }
     }
 
     async startService(socket: DockgeSocket, serviceName: string) {
         const terminalName = getComposeTerminalName(socket.endpoint, this.name);
+        this.prepareBindMounts(socket);
         const exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", [ "compose", "up", "-d", serviceName ], this.path);
         if (exitCode !== 0) {
             throw new Error(`Failed to start service ${serviceName}, please check logs for more information.`);
