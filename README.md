@@ -278,11 +278,11 @@ A=${A:-${IP:-all}} && case "$A" in
   *) BIND="$A:"; URL_IP=$A ;;
 esac &&
 sed -i -E "s#^( *- )([0-9.]+:)?5001:5001#\1${BIND}5001:5001#" "$D/compose.yaml" &&
-# Start Dockge and wait until it answers
-$S docker compose -f "$D/compose.yaml" up -d &&
-for i in $(seq 1 45); do curl -fsS -o /dev/null "http://$URL_IP:5001/" && break; sleep 2; done &&
-curl -fsS -o /dev/null "http://$URL_IP:5001/" && echo "✅ Dockge is up: http://$URL_IP:5001" \
-  || echo "❌ Stopped: see the message above (Dockge's log: $S docker compose -f $D/compose.yaml logs)"
+# Start Dockge and wait (up to 2 minutes) until it answers; connection errors while it starts are expected
+$S docker compose -f "$D/compose.yaml" up -d && printf "Waiting for Dockge to start" &&
+for i in $(seq 1 60); do curl -fs -o /dev/null "http://$URL_IP:5001/" && break; printf "."; sleep 2; done && echo &&
+curl -fs -o /dev/null "http://$URL_IP:5001/" && echo "✅ Dockge is up: http://$URL_IP:5001" \
+  || echo "❌ Stopped: no answer from http://$URL_IP:5001 (Dockge's log: $S docker compose -f $D/compose.yaml logs)"
 cd "$D"
 }
 ```
