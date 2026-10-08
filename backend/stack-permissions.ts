@@ -200,19 +200,24 @@ export function collectBindSources(composeDocs: unknown[]): string[] {
 /**
  * Create a directory path inside root one level at a time, refusing to pass through symlinks
  * or anything that is not a directory.
- * @param root Stack folder (must already exist)
+ * @param root Stack folder or bind root (must already exist)
  * @param relative Path relative to root, already checked not to escape it
  * @returns true when the full path now exists as a real directory tree
  */
 function mkdirInside(root: string, relative: string): boolean {
-    const realRoot = fs.realpathSync(root);
-    let current = root;
+    const base = path.resolve(root);
+    const realBase = fs.realpathSync(base);
+    let current = base;
 
     for (const part of relative.split(path.sep)) {
         if (part === "" || part === ".") {
             continue;
         }
-        current = path.join(current, part);
+        current = path.resolve(current, part);
+        // Checked again here, right before the filesystem calls, not only by the caller
+        if (!current.startsWith(base + path.sep)) {
+            return false;
+        }
 
         let stat: fs.Stats | undefined;
         try {
@@ -234,10 +239,10 @@ function mkdirInside(root: string, relative: string): boolean {
         fs.mkdirSync(current, { mode: STACK_DIR_MODE });
 
         // A path component swapped for a symlink after the lstat above would put the new folder
-        // elsewhere: check where it really landed, and undo it if that's outside root
+        // elsewhere: check where it really landed, and undo the mkdir if that's outside root
         const real = fs.realpathSync(current);
-        if (real !== realRoot && !real.startsWith(realRoot + path.sep)) {
-            fs.rmdirSync(real);
+        if (real !== realBase && !real.startsWith(realBase + path.sep)) {
+            fs.rmdirSync(current);
             return false;
         }
         applyStackOwner(current);
