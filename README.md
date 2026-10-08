@@ -420,6 +420,18 @@ In every case your login, settings and stacks are kept, and your stacks keep run
 
 ### Moving to the recommended setup
 
+**With the migration script** (any install started with `docker compose`). Run it on the Docker host, as your normal user:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/darthrater78/dockge/master/extra/migrate-to-puid.sh -o migrate-to-puid.sh
+less migrate-to-puid.sh      # read it first: it is short and changes nothing until you answer y
+bash migrate-to-puid.sh
+```
+
+It reads your running Dockge (compose file, port and IP, data and stacks folders, other settings such as `TZ` or Turnstile keys), then asks for `PUID`/`PGID` (your ids by default) and the bind-root folder. That defaults to the folder above your stacks folder, such as `/opt/docker`; if that would be a system folder like `/opt`, it suggests the stacks folder instead. It then shows the new `compose.yaml` and a diff, and waits for `y`. Then it backs up the old file and the data folder to `~/dockge-backup-<date>`, switches, waits until Dockge answers, and prints the address and a ready-made undo command. It refuses, without changing anything, when the compose file has something it would lose: other services, custom networks, `env_file`, `${VARIABLE}` substitution or unknown settings. Use the steps below for those. The [one-line update](#update) keeps working afterwards.
+
+**By hand:**
+
 1. **Back up.** In the folder with Dockge's `compose.yaml`: `docker compose stop dockge`, then copy `compose.yaml` and Dockge's data folder (the one mounted at `/app/data`) somewhere safe.
 2. **Edit `compose.yaml`**, keeping your own port and data folder:
    - remove `user:` and `group_add:` if you have them;
@@ -662,6 +674,7 @@ Dockge can run as a regular user (`PUID`/`PGID`) and creates your stacks' bind-m
 - **Bind-mount folders without `chown`.** Before Deploy, Start, Restart, Update and the REST `up` actions, Dockge creates a stack's missing bind-mount folders, owned by its user (`0755`). It covers `./relative` paths, paths built from `${VARIABLES}` in `.env`/`global.env`, and absolute paths under `DOCKGE_BIND_ROOTS` or the stacks folder. Paths through a symlink, outside those roots or with unset variables are left to Docker. Folders it couldn't prepare are shown as a warning
 - **Save checks the file with docker compose first.** An invalid compose file is rejected with compose's own message and the saved file stays as it was, instead of being written and failing later on Deploy and on every status refresh
 - The quickstart asks which IP Dockge should listen on (your LAN IP is suggested; `all` listens everywhere), waits until Dockge answers and prints its address. It also creates `/opt/docker/stacks`, owned by you
+- `extra/migrate-to-puid.sh`: moves an existing install to `PUID`/`PGID` and the hardened settings. It reads the running container, shows the new compose file and a diff before changing anything, backs up, and prints an undo command. It refuses setups it can't rewrite safely. See [Upgrading to 2.4.0](#upgrade)
 - `DOCKGE_BIND_ROOTS`: comma-separated folders (mounted at the same path) where absolute bind-mount folders may be created
 - Permission problems (a stacks folder Dockge can't write, a bad `PUID`/`PGID`, `PUID` that doesn't match `user:`) are shown after login instead of only in the log, and permission errors on save name the folder and what to do
 
