@@ -21,6 +21,7 @@ import { Settings } from "../settings";
 import fs, { promises as fsAsync } from "fs";
 import path from "path";
 import { generateTwoFASecret, verifyTwoFAToken, twoFAVerifyOptions } from "../two-fa";
+import { writeSecretFile } from "../stack-permissions";
 
 async function verifyTurnstileToken(token: string, clientIP: string, secretKey: string): Promise<boolean> {
     if (!token) {
@@ -370,7 +371,7 @@ export class MainSocketHandler extends SocketHandler {
                 }
                 // Handle global.env
                 if (data.globalENV && data.globalENV != "# VARIABLE=value #comment") {
-                    await fsAsync.writeFile(path.join(server.stacksDir, "global.env"), data.globalENV);
+                    writeSecretFile(path.join(server.stacksDir, "global.env"), data.globalENV);
                 } else {
                     await fsAsync.rm(path.join(server.stacksDir, "global.env"), {
                         recursive: true,
@@ -415,7 +416,7 @@ export class MainSocketHandler extends SocketHandler {
             try {
                 checkLogin(socket);
 
-                const user = await R.findOne("user", " id = ? ", [socket.userID]) as User;
+                const user = await R.findOne("user", " id = ? ", [ socket.userID ]) as User;
 
                 callback({
                     ok: true,
@@ -432,7 +433,7 @@ export class MainSocketHandler extends SocketHandler {
                 checkLogin(socket);
                 await doubleCheckPassword(socket, currentPassword as string);
 
-                const user = await R.findOne("user", " id = ? ", [socket.userID]) as User;
+                const user = await R.findOne("user", " id = ? ", [ socket.userID ]) as User;
                 const { secret, uri } = generateTwoFASecret(user.username);
 
                 await R.exec("UPDATE `user` SET twofa_secret = ? WHERE id = ? ", [
@@ -503,7 +504,7 @@ export class MainSocketHandler extends SocketHandler {
                     return;
                 }
 
-                const user = await R.findOne("user", " id = ? ", [socket.userID]) as User;
+                const user = await R.findOne("user", " id = ? ", [ socket.userID ]) as User;
                 const valid = verifyTwoFAToken(token, user.twofa_secret);
 
                 callback({

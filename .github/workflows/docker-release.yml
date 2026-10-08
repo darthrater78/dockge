@@ -91,6 +91,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      image: ${{ steps.push.outputs.image }}
+      digest: ${{ steps.push.outputs.digest }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -102,13 +105,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Use Node.js 22
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -138,21 +134,140 @@ jobs:
       - name: Build frontend
         run: npm run build:frontend
 
-      - name: Build and push image (stable)
-        if: env.CHANNEL == 'stable'
-        run: npm run build:docker
+      - name: Install Trivy
+        env:
+          # Bumped by hand; checksum copied from the release's own trivy_<v>_checksums.txt
+          TRIVY_VERSION: 0.74.0
+          TRIVY_SHA256: 2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a
+        run: |
+          set -euo pipefail
+          curl -fsSL -o trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  trivy.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/trivy"
+          tar xzf trivy.tar.gz -C "$RUNNER_TEMP/trivy" trivy
+          rm trivy.tar.gz
+          echo "$RUNNER_TEMP/trivy" >> "$GITHUB_PATH"
 
-      - name: Build and push image (pre-release)
-        if: env.CHANNEL == 'beta'
-        run: npm run build:docker-beta
+      # After npm install and the frontend build: login writes the GHCR token to
+      # ~/.docker/config.json, which every package's install script could otherwise read
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image (dev)
-        if: env.CHANNEL == 'dev'
-        run: npm run build:docker-dev
+      # Pushed by digest only: no tag points at it until every platform passes the scan below
+      - name: Build and push by digest
+        id: push
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER,,}/dockge"
+          docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 --target release \
+            -f ./docker/Dockerfile --metadata-file "$RUNNER_TEMP/build.json" \
+            --output "type=image,name=${image},push-by-digest=true,name-canonical=true,push=true" .
+          digest=$(jq -r '."containerimage.digest"' "$RUNNER_TEMP/build.json")
+          case "$digest" in sha256:*) ;; *) echo "::error::No digest from the build: $digest"; exit 1 ;; esac
+          echo "IMAGE=${image}" >> "$GITHUB_ENV"
+          echo "DIGEST=${digest}" >> "$GITHUB_ENV"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+      # The gate: a fixable Critical/High on any platform stops the release before any tag exists
+      - name: Scan image (gate)
+        run: |
+          set -euo pipefail
+          for platform in linux/amd64 linux/arm64 linux/arm/v7; do
+            echo "::group::Trivy ${platform}"
+            trivy image --config trivy.yaml --ignorefile .trivyignore.yaml --platform "$platform" \
+              --exit-code 1 --no-progress "${IMAGE}@${DIGEST}"
+            echo "::endgroup::"
+          done
+
+      - name: Tag the scanned image
+        run: |
+          set -euo pipefail
+          # dev -> :dev, alpha/beta/rc -> :beta, stable -> :latest; always :<version>
+          case "$CHANNEL" in
+            dev) channel_tag=dev ;;
+            beta) channel_tag=beta ;;
+            *) channel_tag=latest ;;
+          esac
+          docker buildx imagetools create -t "${IMAGE}:${VERSION}" -t "${IMAGE}:${channel_tag}" "${IMAGE}@${DIGEST}"
 
       - name: Verify image was pushed
         env:
           OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
-          docker buildx imagetools inspect "ghcr.io/${OWNER}/dockge:${VERSION}"
+          docker buildx imagetools inspect "ghcr.io/${OWNER,,}/dockge:${VERSION}"
+
+  # Signed build provenance for the scanned digest. Its own job, so the OIDC token is never
+  # available while npm install scripts run in release-ghcr
+  provenance:
+    needs: release-ghcr
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      attestations: write
+      id-token: write
+      packages: write
+
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ needs.release-ghcr.outputs.image }}
+          subject-digest: ${{ needs.release-ghcr.outputs.digest }}
+          push-to-registry: true
+
+  # Its own job: the only one holding contents: write, and only after the image is published
+  github-release:
+    needs: [release-ghcr, provenance]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; leaving it as it is."
+            exit 0
+          fi
+          # Notes: the README's "### <version>" section under Version History; dev/beta builds use their base version's
+          base="${TAG#v}"
+          base="${base%%-*}"
+          awk -v v="### ${base}" 'index($0, v) == 1 && (length($0) == length(v) || substr($0, length(v) + 1, 1) == " ") { on = 1; next }
+            on && /^##/ { exit } on { print }' README.md > release-notes.md
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "::error::No '### ${base}' section under Version History in README.md. Add the notes there and re-run this job."
+            exit 1
+          fi
+          flags=(--verify-tag --title "$TAG" --notes-file release-notes.md)
+          case "$TAG" in
+            *-dev.*|*-alpha.*|*-beta.*|*-rc.*) flags+=(--prerelease --latest=false) ;;
+            *) flags+=(--latest) ;;
+          esac
+          gh release create "$TAG" "${flags[@]}"

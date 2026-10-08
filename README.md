@@ -18,6 +18,8 @@ Built on Louis's original design, 2.3.0 adds a redesigned phone layout, a resiza
 
 **2.3.1** catches the port conflicts 2.3.0 could miss (ports set through `.env` variables, `compose.override.yaml`, port ranges) and checks your ports when you Save or Deploy a stack. [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.3.1)
 
+**2.4.0** (dev build `2.4.0-dev.1`, for testing) runs Dockge as a regular user: set `PUID`/`PGID` and it fixes the ownership of its own folders, joins the docker.sock group and drops root by itself. It also creates your stacks' bind-mount folders before they start, so containers can write to them without a `chown`. Installs without `PUID`/`PGID` keep running as root, as before. It also includes the security fixes planned for 2.3.2. See [Running as a regular user](#runtime). [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.0-dev.1)
+
 <a id="mobile"></a>
 
 ### 📱 Mobile
@@ -128,6 +130,7 @@ Starting from [Chris Cooper's fork](https://github.com/cmcooper1980/dockge) of [
 | **v2.2.0** | Expandable terminal, mobile polish & audit fixes | Terminal panels on the stack, console and container pages can be dragged taller or expanded to full screen; fixed terminals hiding their newest lines (xterm measured before the web font loaded); server pty now follows the panel size; mobile header and tidier stack actions; release workflow now requires passing CI and a matching tag; anti-framing headers (`DOCKGE_ALLOW_FRAMING` opt-out); private vulnerability reporting |
 | **v2.3.0** | Mobile redesign, resizable desktop list & fast drift scan | Phone layout rebuilt around find → edit → act: searchable stack list with status filters and collapsible per-agent sections, stack page with Overview / Compose / Logs tabs and a bottom action bar; port-conflict banner naming the ports and stacks; conflicting ports no longer hidden behind the "+N" badge; resizable stack list on desktop with port badges that fit its width; Compose Drift Check reachable on mobile and no longer times out on larger hosts (docker queried once per scan instead of per stack and container); `:dev` GHCR channel for branch builds |
 | **v2.3.1** | Port conflicts you couldn't see | Ports written as `${VAR}` are read with the values from the stack's `.env` and `global.env`, ports in `compose.override.yaml` count, and port ranges are matched port by port; Save and Deploy now warn when a host port is already used by another stack (running or not) or by a running container outside any stack |
+| **v2.4.0** | Runs as a regular user, bind folders without `chown` | Entrypoint drops root to `PUID`/`PGID` after fixing ownership of Dockge's own folders and joining the docker.sock group (old installs unchanged); missing bind-mount folders created before `up` (relative, `${VAR}`, and under `DOCKGE_BIND_ROOTS`); hardened quickstart (read-only filesystem, `no-new-privileges`, capabilities dropped); `.env` saved `0600`; Trivy scan gates every image push and the release workflow creates the GitHub release; dependency CVE fixes folded in from the unshipped 2.3.2 |
 
 ### How it worked
 
@@ -260,9 +263,8 @@ Requirements:
 - Port: 5001
 
 ```bash
-# Create the folders (needs root under /opt), make Dockge's folder yours, and go there
-sudo mkdir -p /opt/docker/dockge/data /opt/docker/stacks \
-  && sudo chown "$USER": /opt/docker/dockge && cd /opt/docker/dockge
+# Create Dockge's folder (needs root under /opt), make it yours, and go there
+sudo mkdir -p /opt/docker/dockge && sudo chown "$USER": /opt/docker/dockge && cd /opt/docker/dockge
 
 # Download the compose file (saved as compose.yaml)
 curl https://raw.githubusercontent.com/darthrater78/dockge/master/compose.yaml --output compose.yaml
@@ -271,7 +273,7 @@ curl https://raw.githubusercontent.com/darthrater78/dockge/master/compose.yaml -
 docker compose up -d
 ```
 
-Dockge is now running on http://localhost:5001
+Dockge is now running on http://localhost:5001, as user `1000:1000` (see [Running as a regular user](#runtime)). It creates `data/` and `/opt/docker/stacks` itself, and takes ownership of `/opt/docker` (the folder only, not what's in it) so it can create your apps' bind-mount folders there.
 
 Already running Dockge from another folder (such as `/opt/dockge` from older instructions)? Nothing needs to move; these paths are just the recommended layout for new installs.
 
@@ -283,7 +285,7 @@ To use a different stacks directory or port, generate a compose file with the [i
 curl "https://dockge.kuma.pet/compose.yaml?port=5001&stacksPath=/opt/docker/stacks" --output compose.yaml
 ```
 
-Then set its `image:` to `ghcr.io/darthrater78/dockge:2.3.1` (the generator uses the upstream image). To set the owner of stack files, add under `environment:` (both are needed; the default is `root`):
+Then set its `image:` to `ghcr.io/darthrater78/dockge:2.4.0-dev.1` (the generator uses the upstream image). To run Dockge as a regular user instead of root, add under `environment:` (both are needed):
 
 ```yaml
       - PUID=1000
@@ -292,49 +294,104 @@ Then set its `image:` to `ghcr.io/darthrater78/dockge:2.3.1` (the generator uses
 
 ### -OR- copy and paste
 
-Save this as `/opt/docker/dockge/compose.yaml` (create the folders first: `sudo mkdir -p /opt/docker/dockge/data /opt/docker/stacks && sudo chown "$USER": /opt/docker/dockge`), then run `docker compose up -d` in that folder:
+Save this as `/opt/docker/dockge/compose.yaml` (create the folder first: `sudo mkdir -p /opt/docker/dockge && sudo chown "$USER": /opt/docker/dockge`), then run `docker compose up -d` in that folder:
 
 ```yaml
 services:
   dockge:
-    image: ghcr.io/darthrater78/dockge:2.3.1
+    image: ghcr.io/darthrater78/dockge:2.4.0-dev.1
     restart: unless-stopped
     ports:
       - 5001:5001
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/docker/dockge/data:/app/data
-      - /opt/docker/stacks:/opt/docker/stacks
+      - /opt/docker:/opt/docker
     environment:
+      - PUID=1000
+      - PGID=1000
       - DOCKGE_STACKS_DIR=/opt/docker/stacks
+      - DOCKGE_BIND_ROOTS=/opt/docker
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
 
 # ports: 5001 is Dockge's web UI (host:container).
 #   To listen on one address only: 192.168.1.10:5001:5001
 # /var/run/docker.sock: lets Dockge run docker compose for your stacks
 #   (root-equivalent access to Docker).
 # /opt/docker/dockge/data: Dockge's database and settings (login, agents,
-#   API keys). Back this folder up.
-# /opt/docker/stacks: your stacks. Both sides MUST be the same full path and
-#   MUST match DOCKGE_STACKS_DIR, or stack files end up in the wrong place.
-# DOCKGE_STACKS_DIR: where Dockge looks for stacks (same path as above).
+#   API keys, registry logins). Back this folder up.
+# /opt/docker: your stacks (/opt/docker/stacks) and their bind-mount folders
+#   (/opt/docker/<app>). Both sides MUST be the same full path.
+# PUID/PGID: the user Dockge runs as. It starts as root only to take ownership
+#   of its own folders and join the docker.sock group, then switches to this
+#   user. Remove both lines to run as root like versions before 2.4.0.
+# DOCKGE_STACKS_DIR: where Dockge looks for stacks (inside /opt/docker).
+# DOCKGE_BIND_ROOTS: Dockge creates missing bind-mount folders under these
+#   paths (comma-separated), owned by PUID/PGID, before a stack starts.
+#   ./relative folders inside a stack are always created.
+# read_only/tmpfs: the image can't be changed at runtime; scratch files go
+#   to /tmp in memory.
+# security_opt/cap_drop/cap_add: no privilege escalation, and only the
+#   capabilities the start-up step needs; Dockge itself runs with none.
 # Optional, under environment:
-#   - PUID=1000 and - PGID=1000: owner of stack files (both needed; default root)
 #   - TURNSTILE_SITE_KEY=... and - TURNSTILE_SECRET_KEY=...: CAPTCHA on login
 #   - DOCKGE_ALLOW_FRAMING=true: allow embedding in a dashboard iframe
-# Optional, under volumes:
-#   - /root/.docker/:/root/.docker: registry logins for private images
 ```
+
+<a id="runtime"></a>
+
+## Running as a regular user (PUID/PGID)
+
+With `PUID` and `PGID` set (the quickstart uses `1000`), Dockge starts as root for a moment, then:
+
+1. takes ownership of its own folders: `data/`, the stacks folder, each stack's folder and its `compose.yaml` / `compose.override.yaml` / `.env`, and the `DOCKGE_BIND_ROOTS` folders themselves. Your apps' data inside those folders is never touched;
+2. joins the group that owns `/var/run/docker.sock`, whatever its number is on your host;
+3. switches to `PUID:PGID` with no Linux capabilities, and runs from there.
+
+No `chown`, no `getent group docker`, no `group_add`. Before every Deploy, Start, Restart or Update, Dockge also creates the stack's missing bind-mount folders, owned by `PUID:PGID` with Docker's usual `0755`, so containers that run as `1000` can write to them. Without this, Docker creates them as `root` and you `chown` them by hand. It covers:
+
+- `./relative` folders inside the stack,
+- absolute folders under `DOCKGE_BIND_ROOTS` (the quickstart uses `/opt/docker`, mounted at the same path),
+- paths that use `${VARIABLES}` from the stack's `.env` or `global.env`.
+
+It skips `~` paths, variables that aren't set, anything outside those roots, and paths that go through a symlink; Docker handles those as before. `.env` and `global.env` are saved readable by their owner only (`0600`).
+
+| Your compose file | What happens |
+|---|---|
+| No `PUID`/`PGID`, no `user:` (installs before 2.4.0) | Runs as root, **exactly as before**. Nothing changes until you add `PUID`/`PGID` |
+| `PUID`/`PGID` set | Starts as root, fixes ownership, switches to `PUID:PGID` (above) |
+| `user: "1000:989"` (with or without `group_add`) | Kept as is: Dockge runs as that user from the start and can't change ownership. Bind-mount folders are still created, owned by that user |
+
+**Switching an existing install:** remove `user:` and `group_add:` if you added them, add `PUID`/`PGID`, and `docker compose up -d`. Files Dockge created as root become `PUID:PGID` on the next start. For bind folders under `/opt/docker` and the hardening below, copy the quickstart's `volumes`, `environment`, `read_only`, `tmpfs`, `security_opt`, `cap_drop` and `cap_add`.
+
+**Hardening in the quickstart:** a read-only container filesystem (scratch files go to an in-memory `/tmp`), `no-new-privileges`, and every capability dropped except the five the start-up step needs (`CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETUID`, `SETGID`). Dockge itself runs with none.
+
+**What it doesn't change:** access to `docker.sock` is root-equivalent on the host, whoever holds it. Running as a regular user keeps files out of root's hands, and keeps the web console from being a root shell, but it is not a sandbox. Keep Dockge off the internet: bind the port to a LAN address (`192.168.1.10:5001:5001`) or put it behind a VPN or a TLS reverse proxy, turn on 2FA, and leave the console off unless you need it.
+
+**Private registries:** with `PUID`/`PGID`, logins are kept in `data/docker-config` (root can't share its `/root/.docker` with the new user). A `/root/.docker` mount from older instructions is copied there once on the first start.
 
 ## How to Update
 
-The compose file pins a release (`ghcr.io/darthrater78/dockge:2.3.1`) so an update never happens by surprise.
+The compose file pins a release (`ghcr.io/darthrater78/dockge:2.4.0-dev.1`) so an update never happens by surprise.
 
 ### One-line update
 
 Dockge can't update itself (restarting its own container would cut the update off halfway), so run this on the Docker host. Set `V` to the [latest release](https://github.com/darthrater78/dockge/releases/latest):
 
 ```bash
-V=2.3.1; F=/opt/docker/dockge/compose.yaml
+V=2.4.0-dev.1; F=/opt/docker/dockge/compose.yaml
 S=; docker ps >/dev/null 2>&1 || S=sudo; $S docker pull ghcr.io/darthrater78/dockge:$V \
   && $S sed -i.bak -E "s#(ghcr\.io/darthrater78/dockge:)[^[:space:]]+#\1$V#" "$F" \
   && $S docker compose -f "$F" up -d dockge && $S docker compose -f "$F" ps dockge \
@@ -345,7 +402,7 @@ S=; docker ps >/dev/null 2>&1 || S=sudo; $S docker pull ghcr.io/darthrater78/doc
 2. **Changes only the image tag** in your compose file, keeping the original as `compose.yaml.bak`. Ports, volumes and environment are untouched.
 3. **Recreates the Dockge container** on the new image and shows its status. Your stacks keep running; only Dockge restarts.
 
-It works from any folder, and uses `sudo` automatically if your user isn't allowed to run `docker` directly. Roll back with `mv /opt/docker/dockge/compose.yaml.bak /opt/docker/dockge/compose.yaml` and the same `docker compose -f … up -d dockge`.
+It changes nothing else, so an install that runs as root keeps running as root; see [Running as a regular user](#runtime) to switch. It works from any folder, and uses `sudo` automatically if your user isn't allowed to run `docker` directly. Roll back with `mv /opt/docker/dockge/compose.yaml.bak /opt/docker/dockge/compose.yaml` and the same `docker compose -f … up -d dockge`.
 
 **Compose file somewhere else?** Ask Docker where it was started from, and use that path as `F`:
 
@@ -504,6 +561,49 @@ The API communicates with remote agents via Socket.IO. Agents running pre-1.6.0 
 ## Version History
 
 <a id="release-notes"></a>
+
+### 2.4.0 (dev build 2.4.0-dev.1, 2026-10-08)
+
+2.3.2 was never published; its security fixes are part of this release.
+
+**Added**
+- **Runs as a regular user.** With `PUID`/`PGID` set, the container starts as root only to take ownership of Dockge's own folders (`data/`, the stacks folder, each stack folder and its compose and `.env` files, and the `DOCKGE_BIND_ROOTS` folders themselves, never your apps' data), join the group that owns `docker.sock`, and switch to `PUID:PGID` with no capabilities. No `chown`, docker group lookup or `group_add` on the host
+- **Bind-mount folders without `chown`.** Before Deploy, Start, Restart, Update and the REST `up` actions, Dockge creates a stack's missing bind-mount folders, owned by its user (`0755`). It covers `./relative` paths, paths built from `${VARIABLES}` in `.env`/`global.env`, and absolute paths under `DOCKGE_BIND_ROOTS` or the stacks folder. Paths through a symlink, outside those roots or with unset variables are left to Docker. Folders it couldn't prepare are shown as a warning
+- `DOCKGE_BIND_ROOTS`: comma-separated folders (mounted at the same path) where absolute bind-mount folders may be created
+- Permission problems (a stacks folder Dockge can't write, a bad `PUID`/`PGID`, `PUID` that doesn't match `user:`) are shown after login instead of only in the log, and permission errors on save name the folder and what to do
+
+**Changed**
+- Quickstart `compose.yaml`: `PUID=1000`/`PGID=1000`, `/opt/docker` mounted for stacks and bind folders, read-only container filesystem, `no-new-privileges`, all capabilities dropped except the five the start-up step needs
+- `.env` and `global.env` are written `0600` (owner only), including existing files the next time they are saved
+- App files in the image are owned by root, so the user Dockge runs as can't modify them; npm, npx and corepack are removed from the image (Dockge doesn't use them), and Debian security updates are applied at build time
+- `${VAR}` substitution in the compose preview now follows docker compose exactly (`$VAR`, `${VAR:-default}` on an empty value, `$$`), replacing `@inventage/envsubst`
+- With `PUID`/`PGID`, registry logins live in `data/docker-config`; an existing `/root/.docker` mount is copied there once
+
+**Fixed**
+- The status of a stack that isn't in Dockge's stacks folder (for example one started by another Dockge on the same host) failed with `ENOENT`
+- A stacks folder that couldn't be created or written stopped Dockge at start; it now starts and warns
+
+**Compatibility**
+- No `PUID`/`PGID` and no `user:`: runs as root exactly as before. The one-line updater changes only the image tag, so updating doesn't switch an install to the new mode
+- `user: "<uid>:<gid>"` keeps working; Dockge can't change ownership in that mode, and now warns instead of failing a save when `PUID`/`PGID` differ from it
+
+**Security**
+- engine.io 6.6.9 → 6.6.11 (CVE-2026-102599, High): a client could open a session and then upgrade it to WebSocket with a different or missing `EIO` protocol version, and a crafted heartbeat then crashed the server process. No login was needed. Upgrades must now match the session's protocol version
+- fast-uri 3.1.6 → 3.1.8 (CVE-2026-84292 High, CVE-2026-84394 High, CVE-2026-86472 Medium): URI authority injection and host confusion
+- ip-address 10.5.0 → 10.7.2 (CVE-2026-101910, Medium): the NAT64 local-use range wasn't recognized, which could let a check for private addresses be bypassed
+- brace-expansion 2.1.4 → 2.1.7 (CVE-2026-102276 High, CVE-2026-102278 High, CVE-2026-102277 Medium): crafted brace patterns could exhaust the stack or CPU
+- Build tools only, not in the image: brace-expansion 1.1.21 (the same three CVEs) and joi 17.13.8 (GHSA-6h2x-m376-mqjq)
+- proxy-addr 2.0.7 → 2.0.8 (CVE-2026-90711, Critical); tsx 4.19 → 4.23 (its esbuild was built with a Go runtime carrying 22 Critical/High CVEs); vue 3.5.43 (GHSA-g2v6-rqmx-r4w6, High); sass 1.105 (build tool only)
+- Image scan (Trivy): no known vulnerabilities at any severity, down from 6 Critical and 41 High in the v2.3.1 image
+
+**CI and tooling**
+- Images are pushed by digest, scanned with Trivy on amd64, arm64 and armv7 (`trivy.yaml`), and only then tagged: a fixable Critical/High means no version tag is published. Reviewed exceptions go in `.trivyignore.yaml`, each with a reason and an expiry. The base-image workflow works the same way
+- Each released image carries signed build provenance (`gh attestation verify oci://ghcr.io/darthrater78/dockge:<version> --repo darthrater78/dockge`)
+- The release workflow creates the GitHub release from this Version History section; `-dev`/`-beta`/`-rc` tags become pre-releases
+- New checks: dependency review on pull requests (fails on a new High/Critical advisory) and CodeQL for the TypeScript
+- CI skips its build for docs-only changes but still reports a passing run, so a docs-only commit can be released
+- The Dockerfile pins its own base images by digest
+- ESLint 10 with a flat config (`eslint.config.mjs`), typescript-eslint 8, eslint-plugin-vue 10, unplugin-vue-components 32: `npm audit` reports 0 vulnerabilities, build tools included
 
 ### 2.3.1 (2026-09-25)
 

@@ -68,11 +68,48 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push base image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: docker/Base.Dockerfile
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
-          push: true
-          tags: ghcr.io/darthrater78/dockge:base
+      - name: Install Trivy
+        env:
+          # Bumped by hand with docker-release.yml; checksum from the release's own trivy_<v>_checksums.txt
+          TRIVY_VERSION: 0.74.0
+          TRIVY_SHA256: 2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a
+        run: |
+          set -euo pipefail
+          curl -fsSL -o trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  trivy.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/trivy"
+          tar xzf trivy.tar.gz -C "$RUNNER_TEMP/trivy" trivy
+          rm trivy.tar.gz
+          echo "$RUNNER_TEMP/trivy" >> "$GITHUB_PATH"
+
+      # Pushed by digest only: :base moves only after every platform passes the scan below
+      - name: Build and push base image by digest
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER,,}/dockge"
+          docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 \
+            -f docker/Base.Dockerfile --metadata-file "$RUNNER_TEMP/build.json" \
+            --output "type=image,name=${image},push-by-digest=true,name-canonical=true,push=true" .
+          digest=$(jq -r '."containerimage.digest"' "$RUNNER_TEMP/build.json")
+          case "$digest" in sha256:*) ;; *) echo "::error::No digest from the build: $digest"; exit 1 ;; esac
+          echo "IMAGE=${image}" >> "$GITHUB_ENV"
+          echo "DIGEST=${digest}" >> "$GITHUB_ENV"
+
+      # npm stays in the base (the build stage runs npm ci with it); the release image removes it
+      - name: Scan base image (gate)
+        run: |
+          set -euo pipefail
+          for platform in linux/amd64 linux/arm64 linux/arm/v7; do
+            echo "::group::Trivy ${platform}"
+            trivy image --config trivy.yaml --ignorefile .trivyignore.yaml --platform "$platform" \
+              --skip-dirs /usr/local/lib/node_modules/npm --exit-code 1 --no-progress "${IMAGE}@${DIGEST}"
+            echo "::endgroup::"
+          done
+
+      - name: Tag the scanned base image
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create -t "${IMAGE}:base" "${IMAGE}@${DIGEST}"
