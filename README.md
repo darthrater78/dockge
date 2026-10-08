@@ -564,6 +564,8 @@ The API communicates with remote agents via Socket.IO. Agents running pre-1.6.0 
 
 ### 2.4.0 (dev build 2.4.0-dev.1, 2026-10-08)
 
+Dockge can run as a regular user (`PUID`/`PGID`) and creates your stacks' bind-mount folders itself, so containers can write to them with no `chown` on the host. Installs without `PUID`/`PGID` keep running as root, as before.
+
 2.3.2 was never published; its security fixes are part of this release.
 
 **Added**
