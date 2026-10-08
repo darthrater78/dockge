@@ -12,6 +12,8 @@ A fancy, easy-to-use and reactive self-hosted docker compose.yaml stack-oriented
 
 [![GitHub Repo stars](https://img.shields.io/github/stars/darthrater78/dockge?logo=github&style=flat)](https://github.com/darthrater78/dockge) [![GitHub release (latest by date)](https://img.shields.io/github/v/release/darthrater78/dockge?label=release)](https://github.com/darthrater78/dockge/releases) [![GitHub last commit (branch)](https://img.shields.io/github/last-commit/darthrater78/dockge/master?logo=github)](https://github.com/darthrater78/dockge/commits/master/)
 
+**Jump to:** [🔧 Install](#install) · [⬆️ Upgrading to 2.4.0](#upgrade) · [🔄 Update](#update) · [🔒 Running as a regular user](#runtime) · [📋 Release notes](#release-notes)
+
 ## 🆕 What's new in this fork: 2.3.0
 
 Built on Louis's original design, 2.3.0 adds a redesigned phone layout, a resizable stack list on desktop, port conflicts you can't miss, and a Compose Drift Check that works everywhere. Full list in the [release notes](#release-notes).
@@ -239,6 +241,8 @@ Dockge itself is Louis Lam's project. This fork (by way of [Chris Cooper's fork]
 
 ![](https://github.com/louislam/dockge/assets/1336778/89fc1023-b069-42c0-a01c-918c495f1a6a)
 
+<a id="install"></a>
+
 ## 🔧 How to Install
 
 Requirements:
@@ -390,7 +394,41 @@ It skips `~` paths, variables that aren't set, anything outside those roots, and
 | `PUID`/`PGID` set | Starts as root, fixes ownership, switches to `PUID:PGID` (above) |
 | `user: "1000:989"` (with or without `group_add`) | Kept as is: Dockge runs as that user from the start and can't change ownership. Bind-mount folders are still created, owned by that user |
 
-**Switching an existing install:** remove `user:` and `group_add:` if you added them, add `PUID`/`PGID`, and `docker compose up -d`. Files Dockge created as root become `PUID:PGID` on the next start. For bind folders under `/opt/docker` and the hardening below, copy the quickstart's `volumes`, `environment`, `read_only`, `tmpfs`, `security_opt`, `cap_drop` and `cap_add`.
+**Already running Dockge?** See [Upgrading to 2.4.0](#upgrade): what changes if you only update the image, and how to move to this setup.
+
+**Hardening in the quickstart:** a read-only container filesystem (scratch files go to an in-memory `/tmp`), `no-new-privileges`, and every capability dropped except the five the start-up step needs (`CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETUID`, `SETGID`). Dockge itself runs with none.
+
+**What it doesn't change:** access to `docker.sock` is root-equivalent on the host, whoever holds it. Running as a regular user keeps files out of root's hands, and keeps the web console from being a root shell, but it is not a sandbox. Keep Dockge off the internet: bind the port to a LAN address (`192.168.1.10:5001:5001`) or put it behind a VPN or a TLS reverse proxy, turn on 2FA, and leave the console off unless you need it.
+
+**Private registries:** with `PUID`/`PGID`, logins are kept in `data/docker-config` (root can't share its `/root/.docker` with the new user). A `/root/.docker` mount from older instructions is copied there once on the first start.
+
+<a id="upgrade"></a>
+
+## ⬆️ Upgrading to 2.4.0
+
+### If you only change the image tag
+
+The [one-line update](#update) changes only the image tag. What Dockge does then depends on what your compose file already has:
+
+| Your compose file today | After updating only the image |
+|---|---|
+| No `PUID`/`PGID`, no `user:` (most installs) | **Runs as root, exactly as before.** You will notice three things: Save checks the file with `docker compose` first; missing `./` bind-mount folders are created before a stack starts (as root, as Docker did); `.env` and `global.env` become readable by their owner only (`0600`) the next time they are saved. If root owns them, read them on the host with `sudo` |
+| `PUID`/`PGID` set. Before 2.4.0 these only set the owner of stack files, while Dockge itself ran as root | **Dockge now runs as that user.** On start it takes ownership of its data folder, the stacks folder and each stack's compose and `.env` files (not your apps' data), joins the group of `docker.sock`, and copies registry logins from a `/root/.docker` mount to `data/docker-config`. The web console runs as that user, not root. If `docker.sock` belongs to group `root` (some NAS and Docker Desktop setups), Dockge stays root and says so in its log |
+| `user: "<uid>:<gid>"` (the old non-root workaround) | **Unchanged:** runs as that user. Bind-mount folders inside the stacks folder are now created as that user. If `PUID`/`PGID` are also set and differ, a warning appears after login |
+
+In every case your login, settings and stacks are kept, and your stacks keep running while Dockge restarts. What an image update does **not** add: bind-mount folders outside the stacks folder (they need the `/opt/docker` mount and `DOCKGE_BIND_ROOTS`), the read-only filesystem, `no-new-privileges` and the dropped capabilities. Those come from the compose file, below.
+
+### Moving to the recommended setup
+
+1. **Back up.** In the folder with Dockge's `compose.yaml`: `docker compose stop dockge`, then copy `compose.yaml` and Dockge's data folder (the one mounted at `/app/data`) somewhere safe.
+2. **Edit `compose.yaml`**, keeping your own port and data folder:
+   - remove `user:` and `group_add:` if you have them;
+   - add `PUID` and `PGID` with your own ids (`id -u`, `id -g`). Use your own group, not the docker group: that one is found automatically;
+   - mount the folder that holds your stacks *and* your apps' data at the same path on both sides (`/opt/docker:/opt/docker` in the quickstart). It replaces a separate stacks mount inside it. Then set `DOCKGE_BIND_ROOTS` to that folder, and keep `DOCKGE_STACKS_DIR`;
+   - add `read_only`, `tmpfs`, `security_opt`, `cap_drop` and `cap_add` from the [quickstart compose file](#install);
+   - set the image tag to the new version.
+3. **Start it:** `docker compose up -d`. `docker compose logs dockge | grep entrypoint` should show `running as uid … gid … (groups …)`.
+4. **To go back,** restore the saved `compose.yaml` and run `docker compose up -d`. The data folder doesn't need restoring: the files stay usable by the old setup.
 
 <details>
 <summary><b>Example: from <code>user: "1000:989"</code> (the old non-root workaround) to PUID/PGID</b></summary>
@@ -431,11 +469,7 @@ Back up first (`docker compose stop dockge`, then copy `compose.yaml` and the da
 
 </details>
 
-**Hardening in the quickstart:** a read-only container filesystem (scratch files go to an in-memory `/tmp`), `no-new-privileges`, and every capability dropped except the five the start-up step needs (`CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETUID`, `SETGID`). Dockge itself runs with none.
-
-**What it doesn't change:** access to `docker.sock` is root-equivalent on the host, whoever holds it. Running as a regular user keeps files out of root's hands, and keeps the web console from being a root shell, but it is not a sandbox. Keep Dockge off the internet: bind the port to a LAN address (`192.168.1.10:5001:5001`) or put it behind a VPN or a TLS reverse proxy, turn on 2FA, and leave the console off unless you need it.
-
-**Private registries:** with `PUID`/`PGID`, logins are kept in `data/docker-config` (root can't share its `/root/.docker` with the new user). A `/root/.docker` mount from older instructions is copied there once on the first start.
+<a id="update"></a>
 
 ## How to Update
 
@@ -457,7 +491,7 @@ S=; docker ps >/dev/null 2>&1 || S=sudo; $S docker pull ghcr.io/darthrater78/doc
 2. **Changes only the image tag** in your compose file, keeping the original as `compose.yaml.bak`. Ports, volumes and environment are untouched.
 3. **Recreates the Dockge container** on the new image and shows its status. Your stacks keep running; only Dockge restarts.
 
-It changes nothing else, so an install that runs as root keeps running as root; see [Running as a regular user](#runtime) to switch. It works from any folder, and uses `sudo` automatically if your user isn't allowed to run `docker` directly. Roll back with `mv /opt/docker/dockge/compose.yaml.bak /opt/docker/dockge/compose.yaml` and the same `docker compose -f … up -d dockge`.
+It changes nothing else: see [If you only change the image tag](#upgrade) for what that means for your setup, and how to move to the recommended one. It works from any folder, and uses `sudo` automatically if your user isn't allowed to run `docker` directly. Roll back with `mv /opt/docker/dockge/compose.yaml.bak /opt/docker/dockge/compose.yaml` and the same `docker compose -f … up -d dockge`.
 
 **Compose file somewhere else?** Ask Docker where it was started from, and use that path as `F`:
 
@@ -644,8 +678,9 @@ Dockge can run as a regular user (`PUID`/`PGID`) and creates your stacks' bind-m
 - The status of a stack that isn't in Dockge's stacks folder (for example one started by another Dockge on the same host) failed with `ENOENT`
 - A stacks folder that couldn't be created or written stopped Dockge at start; it now starts and warns
 
-**Compatibility**
+**Compatibility** (details: [Upgrading to 2.4.0](#upgrade))
 - No `PUID`/`PGID` and no `user:`: runs as root exactly as before. The one-line updater changes only the image tag, so updating doesn't switch an install to the new mode
+- **`PUID`/`PGID` already set: behaviour change.** Before 2.4.0 they only set the owner of stack files; now Dockge itself switches to that user (data and stack files are re-owned on start, registry logins are copied, and the web console is no longer a root shell). Remove both to keep running as root
 - `user: "<uid>:<gid>"` keeps working; Dockge can't change ownership in that mode, and now warns instead of failing a save when `PUID`/`PGID` differ from it
 
 **Security**
