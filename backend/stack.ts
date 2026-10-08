@@ -41,6 +41,8 @@ export class Stack {
 
     protected static managedStackList: Map<string, Stack> = new Map();
     protected static globalENVCache? : { at : number, vars : Record<string, string> };
+    /** Last status error logged per stack, so a broken stack is logged once rather than on every poll */
+    protected static statusErrors : Map<string, string> = new Map();
 
     protected _services: Map<string, ServiceData> = new Map();
     protected _recreateNecessary: boolean = false;
@@ -383,6 +385,18 @@ export class Stack {
             }
         }
 
+        // Check the new files with docker compose before replacing anything, so an invalid file is
+        // rejected with compose's own message instead of being saved and failing on every status poll
+        try {
+            await this.validateCompose(dir);
+        } catch (e) {
+            if (isAdd) {
+                await fsAsync.rm(dir, { recursive: true,
+                    force: true });
+            }
+            throw e;
+        }
+
         // Write or overwrite the compose.yaml
         const composePath = path.join(dir, this._composeFileName);
         try {
@@ -408,6 +422,76 @@ export class Stack {
         // Write .env file only when the user explicitly provided env content
         if (this._composeENV !== undefined) {
             writeSecretFile(path.join(dir, ".env"), this._composeENV);
+        }
+    }
+
+    /**
+     * Run `docker compose config` on the content about to be saved. The files are checked as hidden
+     * copies inside the stack folder, so relative paths (include, env_file, build) resolve as they will
+     * on `up`, and removed afterwards.
+     * @param dir Stack folder (exists)
+     * @throws ValidationError with compose's message when the files are invalid
+     */
+    protected async validateCompose(dir : string) {
+        const composeCheck = ".dockge-check.compose.yaml";
+        const overrideCheck = ".dockge-check.override.yaml";
+        const envCheck = ".dockge-check.env";
+        const written : string[] = [];
+        // Something with write access to the stack folder (a container mounting it) could plant a symlink
+        // under these names: remove whatever is there, then create exclusively so no link is followed
+        const write = (name : string, content : string) => {
+            const target = path.join(dir, name);
+            fs.rmSync(target, { force: true });
+            fs.writeFileSync(target, content, { mode: 0o600,
+                flag: "wx" });
+            written.push(name);
+        };
+
+        try {
+            write(composeCheck, this.composeYAML);
+            const args = [ "compose", "--project-directory", ".", "-f", composeCheck ];
+            if (this.composeOverrideYAML.trim() !== "") {
+                write(overrideCheck, this.composeOverrideYAML);
+                args.push("-f", overrideCheck);
+            }
+
+            // Same variable sources as getComposeOptions(): global.env first, then the stack's .env
+            const hasGlobalENV = fs.existsSync(path.join(this.server.stacksDir, "global.env"));
+            if (hasGlobalENV) {
+                args.push("--env-file", "../global.env");
+            }
+            if (this._composeENV !== undefined) {
+                write(envCheck, this._composeENV);
+                args.push("--env-file", envCheck);
+            } else if (hasGlobalENV && fs.existsSync(path.join(dir, ".env"))) {
+                args.push("--env-file", "./.env");
+            }
+            args.push("config", "--quiet");
+
+            await childProcessAsync.spawn("docker", args, {
+                cwd: dir,
+                encoding: "utf-8",
+                timeout: 20000,
+            });
+        } catch (e) {
+            const err = e as NodeJS.ErrnoException & { stderr?: string | Buffer };
+            if (err.code === "ENOENT" || err.code === "EACCES" || err.code === "EPERM" || err.code === "EEXIST") {
+                // No docker CLI, or the check files couldn't be written: save as before, compose reports on `up`
+                log.warn("stack", `${this.name}: compose check skipped (${err.code})`);
+                return;
+            }
+            const stderr = (err.stderr ?? "").toString().trim();
+            const message = stderr
+                .replaceAll(path.join(dir, composeCheck), this._composeFileName)
+                .replaceAll(composeCheck, this._composeFileName)
+                .replaceAll(path.join(dir, overrideCheck), this._composeOverrideFileName)
+                .replaceAll(overrideCheck, this._composeOverrideFileName)
+                .replaceAll(envCheck, ".env");
+            throw new ValidationError(`Not saved, docker compose rejected the file: ${message || String(e)}`);
+        } finally {
+            for (const name of written) {
+                fs.rmSync(path.join(dir, name), { force: true });
+            }
         }
     }
 
@@ -755,6 +839,10 @@ export class Stack {
                     encoding: "utf-8",
                 });
 
+            if (Stack.statusErrors.delete(this.name)) {
+                log.info("getServiceStatusList", `${this.name}: status available again`);
+            }
+
             if (!res.stdout) {
                 return statusList;
             }
@@ -785,7 +873,14 @@ export class Stack {
 
             return statusList;
         } catch (e) {
-            log.error("getServiceStatusList", e);
+            // The UI polls this every few seconds: log a broken stack once, and again only when the
+            // error changes, as one readable line instead of a stack trace per poll
+            const stderr = ((e as { stderr?: string | Buffer }).stderr ?? "").toString().trim();
+            const message = stderr || (e instanceof Error ? e.message : String(e));
+            if (Stack.statusErrors.get(this.name) !== message) {
+                Stack.statusErrors.set(this.name, message);
+                log.error("getServiceStatusList", `${this.name}: ${message}`);
+            }
             return statusList;
         }
     }
