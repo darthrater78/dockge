@@ -263,18 +263,33 @@ Requirements:
 - Port: 5001
 
 ```bash
-# Create Dockge's folder and the stacks folder (needs root under /opt), make them yours, and go there
-sudo mkdir -p /opt/docker/dockge /opt/docker/stacks \
-  && sudo chown "$USER": /opt/docker/dockge /opt/docker/stacks && cd /opt/docker/dockge
-
-# Download the compose file (saved as compose.yaml)
-curl https://raw.githubusercontent.com/darthrater78/dockge/master/compose.yaml --output compose.yaml
-
-# Start Dockge
-docker compose up -d
+{
+D=/opt/docker/dockge; S=; docker ps >/dev/null 2>&1 || S=sudo
+# Create Dockge's folder and the stacks folder (needs root under /opt) and make them yours
+sudo mkdir -p "$D" /opt/docker/stacks && sudo chown "$USER": "$D" /opt/docker/stacks &&
+# Download the compose file
+curl -fsSL https://raw.githubusercontent.com/darthrater78/dockge/master/compose.yaml -o "$D/compose.yaml" &&
+# Choose where Dockge listens: this machine's LAN IP (suggested), another IP, or 'all' interfaces
+IP=$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p') &&
+read -rp "Listen on which IP? [Enter = ${IP:-all}, or type an IP, or 'all']: " A </dev/tty &&
+A=${A:-${IP:-all}} && case "$A" in
+  all) BIND=; URL_IP=${IP:-localhost} ;;
+  *[!0-9.]* | "") echo "Not an IPv4 address: $A"; false ;;
+  *) BIND="$A:"; URL_IP=$A ;;
+esac &&
+sed -i -E "s#^( *- )([0-9.]+:)?5001:5001#\1${BIND}5001:5001#" "$D/compose.yaml" &&
+# Start Dockge and wait until it answers
+$S docker compose -f "$D/compose.yaml" up -d &&
+for i in $(seq 1 45); do curl -fsS -o /dev/null "http://$URL_IP:5001/" && break; sleep 2; done &&
+curl -fsS -o /dev/null "http://$URL_IP:5001/" && echo "✅ Dockge is up: http://$URL_IP:5001" \
+  || echo "❌ Stopped: see the message above (Dockge's log: $S docker compose -f $D/compose.yaml logs)"
+cd "$D"
+}
 ```
 
-Dockge is now running on http://localhost:5001, as user `1000:1000` (see [Running as a regular user](#runtime)). It creates `data/` itself, and takes ownership of `/opt/docker` (the folder only, not what's in it) so it can create your apps' bind-mount folders there.
+Paste it as a whole: the `{ }` makes your shell read every line before running any, so the IP question waits for you. Press Enter to accept the suggested address (your LAN IP, so Dockge isn't reachable on other interfaces such as a VPN or a public one), type a different IP, or type `all` to listen on every interface. The last line prints the address that answered.
+
+Dockge then runs as user `1000:1000` (see [Running as a regular user](#runtime)). It creates `data/` itself, and takes ownership of `/opt/docker` (the folder only, not what's in it) so it can create your apps' bind-mount folders there.
 
 Already running Dockge from another folder (such as `/opt/dockge` from older instructions)? Nothing needs to move; these paths are just the recommended layout for new installs.
 
