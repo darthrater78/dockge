@@ -20,7 +20,7 @@ Built on Louis's original design, 2.3.0 adds a redesigned phone layout, a resiza
 
 **2.3.1** catches the port conflicts 2.3.0 could miss (ports set through `.env` variables, `compose.override.yaml`, port ranges) and checks your ports when you Save or Deploy a stack. [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.3.1)
 
-**2.4.0** (dev build `2.4.0-dev.2`, for testing) runs Dockge as a regular user: set `PUID`/`PGID` and it fixes the ownership of its own folders, joins the docker.sock group and drops root by itself. It also creates your stacks' bind-mount folders before they start, so containers can write to them without a `chown`. Installs without `PUID`/`PGID` keep running as root, as before. It also includes the security fixes planned for 2.3.2. See [Running as a regular user](#runtime). [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.0-dev.2)
+**2.4.0** runs Dockge as a regular user: set `PUID`/`PGID` and it fixes the ownership of its own folders, joins the docker.sock group and drops root by itself. It also creates your stacks' bind-mount folders before they start, so containers can write to them without a `chown`. Installs without `PUID`/`PGID` keep running as root, as before. It also includes the security fixes planned for 2.3.2. See [Running as a regular user](#runtime). [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.0-dev.2)
 
 <a id="mobile"></a>
 
@@ -305,7 +305,7 @@ To use a different stacks directory or port, generate a compose file with the [i
 curl "https://dockge.kuma.pet/compose.yaml?port=5001&stacksPath=/opt/docker/stacks" --output compose.yaml
 ```
 
-Then set its `image:` to `ghcr.io/darthrater78/dockge:2.4.0-dev.2` (the generator uses the upstream image). To run Dockge as a regular user instead of root, add under `environment:` (both are needed):
+Then set its `image:` to `ghcr.io/darthrater78/dockge:2.4.0` (the generator uses the upstream image). To run Dockge as a regular user instead of root, add under `environment:` (both are needed):
 
 ```yaml
       - PUID=1000
@@ -319,7 +319,7 @@ Save this as `/opt/docker/dockge/compose.yaml` (create the folders first: `sudo 
 ```yaml
 services:
   dockge:
-    image: ghcr.io/darthrater78/dockge:2.4.0-dev.2
+    image: ghcr.io/darthrater78/dockge:2.4.0
     restart: unless-stopped
     ports:
       - 5001:5001
@@ -485,14 +485,14 @@ Back up first (`docker compose stop dockge`, then copy `compose.yaml` and the da
 
 ## How to Update
 
-The compose file pins a release (`ghcr.io/darthrater78/dockge:2.4.0-dev.2`) so an update never happens by surprise.
+The compose file pins a release (`ghcr.io/darthrater78/dockge:2.4.0`) so an update never happens by surprise.
 
 ### One-line update
 
 Dockge can't update itself (restarting its own container would cut the update off halfway), so run this on the Docker host. Set `V` to the [latest release](https://github.com/darthrater78/dockge/releases/latest):
 
 ```bash
-V=2.4.0-dev.2; F=/opt/docker/dockge/compose.yaml
+V=2.4.0; F=/opt/docker/dockge/compose.yaml
 S=; docker ps >/dev/null 2>&1 || S=sudo; $S docker pull ghcr.io/darthrater78/dockge:$V \
   && $S sed -i.bak -E "s#(ghcr\.io/darthrater78/dockge:)[^[:space:]]+#\1$V#" "$F" \
   && $S docker compose -f "$F" up -d dockge && $S docker compose -f "$F" ps dockge \
@@ -663,7 +663,7 @@ The API communicates with remote agents via Socket.IO. Agents running pre-1.6.0 
 
 <a id="release-notes"></a>
 
-### 2.4.0 (dev build 2.4.0-dev.2, 2026-10-08)
+### 2.4.0 (2026-10-08)
 
 Dockge can run as a regular user (`PUID`/`PGID`) and creates your stacks' bind-mount folders itself, so containers can write to them with no `chown` on the host. Installs without `PUID`/`PGID` keep running as root, as before.
 
