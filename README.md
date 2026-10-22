@@ -24,6 +24,8 @@ Built on Louis's original design, 2.3.0 adds a redesigned phone layout, a resiza
 
 **2.4.0** runs Dockge as a regular user: set `PUID`/`PGID` and it fixes the ownership of its own folders, joins the docker.sock group and drops root by itself. It also creates your stacks' bind-mount folders before they start, so containers can write to them without a `chown`. Installs without `PUID`/`PGID` keep running as root, as before. It also includes the security fixes planned for 2.3.2. See [Running as a regular user](#runtime). [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.0-dev.2)
 
+**2.4.1** is a security update: the image runs Node.js 22.23.4, which fixes the [October 2026 Node.js security release](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases) (a Brotli decoder remote-code-execution bug and TLS hostname-check bypasses). Nothing else changes; update the image tag. [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.1)
+
 <a id="mobile"></a>
 
 ### 📱 Mobile
@@ -135,6 +137,7 @@ Starting from [Chris Cooper's fork](https://github.com/cmcooper1980/dockge) of [
 | **v2.3.0** | Mobile redesign, resizable desktop list & fast drift scan | Phone layout rebuilt around find → edit → act: searchable stack list with status filters and collapsible per-agent sections, stack page with Overview / Compose / Logs tabs and a bottom action bar; port-conflict banner naming the ports and stacks; conflicting ports no longer hidden behind the "+N" badge; resizable stack list on desktop with port badges that fit its width; Compose Drift Check reachable on mobile and no longer times out on larger hosts (docker queried once per scan instead of per stack and container); `:dev` GHCR channel for branch builds |
 | **v2.3.1** | Port conflicts you couldn't see | Ports written as `${VAR}` are read with the values from the stack's `.env` and `global.env`, ports in `compose.override.yaml` count, and port ranges are matched port by port; Save and Deploy now warn when a host port is already used by another stack (running or not) or by a running container outside any stack |
 | **v2.4.0** | Runs as a regular user, bind folders without `chown` | Entrypoint drops root to `PUID`/`PGID` after fixing ownership of Dockge's own folders and joining the docker.sock group (old installs unchanged); missing bind-mount folders created before `up` (relative, `${VAR}`, and under `DOCKGE_BIND_ROOTS`); hardened quickstart (read-only filesystem, `no-new-privileges`, capabilities dropped); `.env` saved `0600`; Trivy scan gates every image push and the release workflow creates the GitHub release; dependency CVE fixes folded in from the unshipped 2.3.2 |
+| **v2.4.1** | Node.js security update | Base image moved to Node.js 22.23.4 for the October 2026 Node.js security release (Brotli decoder RCE, TLS hostname bypasses); healthcheck rebuilt with Go 1.27.3; follow-redirects and vite dev-dependency fixes |
 
 ### How it worked
 
@@ -307,7 +310,7 @@ To use a different stacks directory or port, generate a compose file with the [i
 curl "https://dockge.kuma.pet/compose.yaml?port=5001&stacksPath=/opt/docker/stacks" --output compose.yaml
 ```
 
-Then set its `image:` to `ghcr.io/darthrater78/dockge:2.4.0` (the generator uses the upstream image). To run Dockge as a regular user instead of root, add under `environment:` (both are needed):
+Then set its `image:` to `ghcr.io/darthrater78/dockge:2.4.1` (the generator uses the upstream image). To run Dockge as a regular user instead of root, add under `environment:` (both are needed):
 
 ```yaml
       - PUID=1000
@@ -321,7 +324,7 @@ Save this as `/opt/docker/dockge/compose.yaml` (create the folders first: `sudo 
 ```yaml
 services:
   dockge:
-    image: ghcr.io/darthrater78/dockge:2.4.0
+    image: ghcr.io/darthrater78/dockge:2.4.1
     restart: unless-stopped
     ports:
       - 5001:5001
@@ -487,14 +490,14 @@ Back up first (`docker compose stop dockge`, then copy `compose.yaml` and the da
 
 ## How to Update
 
-The compose file pins a release (`ghcr.io/darthrater78/dockge:2.4.0`) so an update never happens by surprise.
+The compose file pins a release (`ghcr.io/darthrater78/dockge:2.4.1`) so an update never happens by surprise.
 
 ### One-line update
 
 Dockge can't update itself (restarting its own container would cut the update off halfway), so run this on the Docker host. Set `V` to the [latest release](https://github.com/darthrater78/dockge/releases/latest):
 
 ```bash
-V=2.4.0; F=/opt/docker/dockge/compose.yaml
+V=2.4.1; F=/opt/docker/dockge/compose.yaml
 S=; docker ps >/dev/null 2>&1 || S=sudo; $S docker pull ghcr.io/darthrater78/dockge:$V \
   && $S sed -i.bak -E "s#(ghcr\.io/darthrater78/dockge:)[^[:space:]]+#\1$V#" "$F" \
   && $S docker compose -f "$F" up -d dockge && $S docker compose -f "$F" ps dockge \
@@ -664,6 +667,16 @@ The API communicates with remote agents via Socket.IO. Agents running pre-1.6.0 
 ## Version History
 
 <a id="release-notes"></a>
+
+### 2.4.1 (2026-10-22)
+
+A security update. The image now runs Node.js 22.23.4. Nothing else changes: update the image tag (see [How to Update](#update)).
+
+**Security**
+- Node.js 22.x → 22.23.4 in the base image, for the October 21, 2026 Node.js security release: CVE-2026-111497 (High, Brotli decoder out-of-bounds write allowing remote code execution), CVE-2026-105482 (High, `dns.resolve` name truncation), CVE-2026-105483 and CVE-2026-106069 (High, TLS hostname verification bypasses), plus six Medium/Low fixes. Dockge uses TLS when it connects to remote agents
+- Healthcheck binary rebuilt with Go 1.27.1 → 1.27.3: CVE-2026-111943 (High, `crypto/x509` certificate validation), CVE-2026-78667 and CVE-2026-97031 (High, denial of service in `net/http` and `crypto/tls`)
+- Build tools only, not in the image: follow-redirects 1.16.0 → 1.16.1 (GHSA-q3jh-wrc6-jgq8, GHSA-8r9p-f939-6h3c, High) and vite 6.4.3 → 6.4.5
+- Accepted until 2026-11-30: CVE-2026-78669 (High) in `golang.org/x/net` 0.58.0 inside the Docker Compose plugin, a denial of service from an HTTP/2 server flooding SETTINGS frames. No Compose release carries the fix (0.60.0) yet; the image scan re-checks it when the waiver expires
 
 ### 2.4.0 (2026-10-08)
 
@@ -968,6 +981,8 @@ https://github.com/darthrater78/dockge/issues
 
 ### Security Issues
 Please report privately: https://github.com/darthrater78/dockge/security/advisories/new
+
+How Dockge handles security (login, API key, stored data, releases): [Security architecture](SECURITY.md#security-architecture)
 
 ### Translation
 If you want to translate Dockge into your language, please read [Translation Guide](https://github.com/darthrater78/dockge/blob/master/frontend/src/lang/README.md)

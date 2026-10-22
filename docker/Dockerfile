@@ -7,7 +7,7 @@ FROM ghcr.io/darthrater78/dockge:build-healthcheck@sha256:199ec80354eb8041677109
 # Build
 ############################################
 # Pinned by digest: bump after each docker-base.yml run (Dependabot proposes it weekly)
-FROM ghcr.io/darthrater78/dockge:base@sha256:1a71c86cb0adedca11b56dfc33ab54c5e1d7ae017c8b3dbf38654c7b0734907f AS build
+FROM ghcr.io/darthrater78/dockge:base@sha256:578a9262c15034ecb2a5d9c68b93339f11937365fb42c7b75f22c25494fe1af6 AS build
 WORKDIR /app
 COPY --chown=node:node  ./package.json ./package.json
 COPY --chown=node:node  ./package-lock.json ./package-lock.json
@@ -16,7 +16,7 @@ RUN npm ci --omit=dev
 ############################################
 # ⭐ Main Image
 ############################################
-FROM ghcr.io/darthrater78/dockge:base@sha256:1a71c86cb0adedca11b56dfc33ab54c5e1d7ae017c8b3dbf38654c7b0734907f AS release
+FROM ghcr.io/darthrater78/dockge:base@sha256:578a9262c15034ecb2a5d9c68b93339f11937365fb42c7b75f22c25494fe1af6 AS release
 WORKDIR /app
 # Debian security updates published since the base image was built, and no npm/npx/corepack:
 # Dockge never runs them, and the copy bundled with Node carries its own CVEs
