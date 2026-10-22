@@ -16,7 +16,7 @@ A fancy, easy-to-use and reactive self-hosted docker compose.yaml stack-oriented
 
 **Jump to:** [🔧 Install](#install) · [⬆️ Upgrading to 2.4.0](#upgrade) · [🔄 Update](#update) · [🔒 Running as a regular user](#runtime) · [📋 Release notes](#release-notes)
 
-## 🆕 What's new in this fork: 2.3.0
+## 🆕 What's new in this fork
 
 Built on Louis's original design, 2.3.0 adds a redesigned phone layout, a resizable stack list on desktop, port conflicts you can't miss, and a Compose Drift Check that works everywhere. Full list in the [release notes](#release-notes).
 
@@ -226,6 +226,10 @@ Dockge itself is Louis Lam's project. This fork (by way of [Chris Cooper's fork]
 - ↔️ (2.3.0 🆕) Resizable stack list on desktop, with port badges that fill whatever width you give it ([details](#desktop))
 - 🚦 (2.3.0 🆕) Port conflict banner — every host port published by more than one running stack, and which stacks they are
 - 🛑 (2.3.1 🆕) Port check on Save and Deploy — warns when a host port is already used by another stack (running or not) or a running container, including ports set through `.env` variables, `compose.override.yaml` and port ranges
+- 👤 (2.4.0 🆕) Runs as a regular user — set `PUID`/`PGID` and Dockge fixes the ownership of its own folders, then drops root ([details](#runtime))
+- 📁 (2.4.0 🆕) Creates a stack's missing bind-mount folders before it starts, owned by Dockge's user, so containers can write to them without a `chown`
+- ✅ (2.4.0 🆕) Save checks the compose file with `docker compose` first and keeps the old file if the new one is invalid
+- 🛡️ (2.4.1) Security update: Node.js 22.23.4 and a rebuilt healthcheck ([release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.1))
 - 🧑‍💼 Manage your `compose.yaml` files
   - Create/Edit/Start/Stop/Restart/Update/Delete
 - ⌨️ Interactive Editor for `compose.yaml`
