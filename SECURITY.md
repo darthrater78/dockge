@@ -21,7 +21,7 @@ What follows describes how this fork handles security, so it can be checked agai
 ### Design
 
 - **What Dockge can do.** It mounts `/var/run/docker.sock`, which is root-equivalent on the host: anyone who logs in to Dockge, or holds its API key, can run any container with any mount. Treat a Dockge login like root on the Docker host.
-- **Login.** One user account: bcrypt password hash; JWT session tokens valid 30 days, signed with a random secret generated on first start; optional TOTP 2FA. Login attempts are limited to 20 a minute and 2FA attempts to 30 a minute, counted across all clients, not per client.
+- **Login.** One user account: bcrypt password hash; JWT session tokens valid 30 days, signed with a random secret generated on first start; optional TOTP 2FA and optional Cloudflare Turnstile CAPTCHA. Login attempts are limited to 20 a minute and 2FA attempts to 30 a minute, counted across all clients, not per client.
 - **REST API.** Off until an API key is generated in Settings or set with `DOCKGE_API_KEY`. Requests send it in `X-API-Key`; it is compared in constant time. Stack names are validated where every stack path is built.
 - **Web console.** The host shell console is off unless `DOCKGE_ENABLE_CONSOLE=true`.
 - **Process.** With `PUID`/`PGID` the container starts as root only to fix ownership of Dockge's own folders and join the docker.sock group, then runs as that user. App files in the image are root-owned. The quickstart adds a read-only root filesystem, `no-new-privileges` and drops all capabilities.
