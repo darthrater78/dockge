@@ -39,5 +39,6 @@ What follows describes how this fork handles security, so it can be checked agai
 
 - 2026-10-22 (v2.4.1): base image moved to Node.js 22.23.4 for the October 2026 Node.js security release (Brotli decoder RCE, TLS hostname bypasses).
 - 2026-10-22 (v2.4.1): healthcheck binary rebuilt with Go 1.27.3 (CVE-2026-111943, CVE-2026-78667, CVE-2026-97031).
+- 2026-10-22 (v2.4.1, risk accepted until 2.5.0): the API key and the session-signing secret are stored in plaintext in the database, and the agent-password key is that same secret. Accepted because `data/` is only readable on the Docker host; a fix (storing a hash of the API key, a separate key for agent passwords) is planned for 2.5.0.
 - 2026-10-22 (v2.4.1, risk accepted until 2026-11-30): CVE-2026-78669 in the Docker Compose plugin's `golang.org/x/net`; no fixed Compose release yet.
 - 2026-10-08 (v2.4.0): runs as a regular user with `PUID`/`PGID`; `.env` files `0600`; stack-name checks where paths are built (CodeQL path-injection fixes); image scan gate and build provenance; image went from 6 Critical / 41 High to 0. Details in the README's 2.4.0 notes.
