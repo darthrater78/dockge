@@ -717,7 +717,7 @@ A dependency security update, plus a narrower quickstart. The server's dependenc
 - body-parser 2.3.0 → 2.4.0 (High): a denial of service from trailing bytes after a compressed request body. The JSON parser runs before the API-key check, so it was reachable without a key
 - fast-uri 3.1.9, ip-address 10.7.5, qs 6.17.1 (Moderate)
 - glob 14.0.3 and minimatch 11.0.3 through `overrides`, for the Moderate advisories in sqlite3, redbean-node and the lint tools
-- Accepted: GHSA-83rm-6c8r-g728 (High) in vue-i18n 10.0.8. It needs `escapeParameter` and translations rendered with `v-html`; Dockge uses neither. The fix needs vue-i18n 11
+- Accepted: GHSA-83rm-6c8r-g728 (High) and GHSA-8rc2-428q-7ww3 (Low) in vue-i18n 10.0.8, and the 10.x line being out of support. Both advisories need `escapeParameter`, and the first also needs translations rendered with `v-html`; Dockge uses neither, and its translations are bundled with the app. Dockge stays on vue-i18n 10 until an advisory affects it
 
 ### 2.4.1 (2026-10-22)
 
