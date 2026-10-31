@@ -256,13 +256,13 @@ jobs:
             echo "Release $TAG already exists; leaving it as it is."
             exit 0
           fi
-          # Notes: the README's "### <version>" section under Version History; dev/beta builds use their base version's
+          # Notes: the "## <version>" section of CHANGELOG.md; dev/beta builds use their base version's
           base="${TAG#v}"
           base="${base%%-*}"
-          awk -v v="### ${base}" 'index($0, v) == 1 && (length($0) == length(v) || substr($0, length(v) + 1, 1) == " ") { on = 1; next }
-            on && /^##/ { exit } on { print }' README.md > release-notes.md
+          awk -v v="## ${base}" 'index($0, v) == 1 && (length($0) == length(v) || substr($0, length(v) + 1, 1) == " ") { on = 1; next }
+            on && /^## / { exit } on { print }' CHANGELOG.md > release-notes.md
           if ! grep -q '[^[:space:]]' release-notes.md; then
-            echo "::error::No '### ${base}' section under Version History in README.md. Add the notes there and re-run this job."
+            echo "::error::No '## ${base}' section in CHANGELOG.md. Add the notes there and re-run this job."
             exit 1
           fi
           flags=(--verify-tag --title "$TAG" --notes-file release-notes.md)

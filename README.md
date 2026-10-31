@@ -8,295 +8,47 @@ A fancy, easy-to-use and reactive self-hosted docker compose.yaml stack-oriented
 
 <a href="https://github.com/darthrater78/dockge/releases"><img alt="Dev build status" src="https://raw.githubusercontent.com/darthrater78/dockge/readme-banner/banner.svg" /></a>
 
-> **Dockge is [Louis Lam](https://github.com/louislam)'s project** (he also created [Uptime Kuma](https://github.com/louislam/uptime-kuma)). The compose manager, the reactive real-time UI, the interactive terminal and multi-agent support are all his work.
->
-> This repository is a fork of [Chris Cooper's fork](https://github.com/cmcooper1980/dockge) (cmcooper1980/dockge), which is itself based on [louislam/dockge](https://github.com/louislam/dockge). The [REST API](#rest-api) framework comes from [finder39's fork](https://github.com/finder39/dockge) ("Dockge Managed"). The sections below describe what this fork adds on top of that work. If you like Dockge, please ⭐ the [original project](https://github.com/louislam/dockge) too.
-
 [![GitHub Repo stars](https://img.shields.io/github/stars/darthrater78/dockge?logo=github&style=flat)](https://github.com/darthrater78/dockge) [![GitHub release (latest by date)](https://img.shields.io/github/v/release/darthrater78/dockge?label=release)](https://github.com/darthrater78/dockge/releases) [![GitHub last commit (branch)](https://img.shields.io/github/last-commit/darthrater78/dockge/master?logo=github)](https://github.com/darthrater78/dockge/commits/master/)
 
-**Jump to:** [🔧 Install](#install) · [↔️ Differences from upstream](#upstream-differences) · [⬆️ Upgrading to 2.4.0](#upgrade) · [🔄 Update](#update) · [🔒 Running as a regular user](#runtime) · [📋 Release notes](#release-notes)
+> **Dockge is [Louis Lam](https://github.com/louislam)'s project** (he also created [Uptime Kuma](https://github.com/louislam/uptime-kuma)). This is a fork of [Chris Cooper's fork](https://github.com/cmcooper1980/dockge), with a REST API from [finder39's fork](https://github.com/finder39/dockge). If you like Dockge, please ⭐ the [original project](https://github.com/louislam/dockge) too. [More about this fork](docs/upstream.md).
 
-## 🆕 What's new in this fork
+**Jump to:** [🔧 Install](#install) · [🔄 Update](#update) · [⬆️ Already running Dockge?](#upgrade) · [📚 Docs](#docs) · [📋 Release notes](#release-notes)
 
-Built on Louis's original design, 2.3.0 adds a redesigned phone layout, a resizable stack list on desktop, port conflicts you can't miss, and a Compose Drift Check that works everywhere. Full list in the [release notes](#release-notes).
+## 🆕 What's new
 
-**2.3.1** catches the port conflicts 2.3.0 could miss (ports set through `.env` variables, `compose.override.yaml`, port ranges) and checks your ports when you Save or Deploy a stack. [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.3.1)
+**2.4.2** (2026-10-31) fixes the server's dependency advisories (body-parser, a High denial of service) and goes back to upstream's mount layout: the quickstart mounts only Dockge's data folder and the stacks folder. Installs made with the 2.4.0 or 2.4.1 quickstart can switch back [without moving any data](#bind-roots).
 
-**2.4.0** runs Dockge as a regular user: set `PUID`/`PGID` and it fixes the ownership of its own folders, joins the docker.sock group and drops root by itself. It also creates your stacks' missing bind-mount folders inside the stack before they start, so containers can write to them without a `chown` (folders elsewhere are left to Docker, as upstream). Installs without `PUID`/`PGID` keep running as root, as before. It also includes the security fixes planned for 2.3.2. See [Running as a regular user](#runtime). [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.0-dev.2)
-
-**2.4.1** is a security update: the image runs Node.js 22.23.4, which fixes the [October 2026 Node.js security release](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases) (a Brotli decoder remote-code-execution bug and TLS hostname-check bypasses). Nothing else changes; update the image tag. [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.1)
-
-**2.4.2** fixes the server's dependency advisories (body-parser, a High denial of service) and goes back to upstream's mount layout: the quickstart mounts only Dockge's data folder and the stacks folder. Installs made with the 2.4.0 or 2.4.1 quickstart can switch back [without moving any data](#bind-roots); see also [Differences from upstream](#upstream-differences). [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.2)
-
-<a id="mobile"></a>
-
-### 📱 Mobile
-
-On a phone, Dockge is built around one job: **find a stack → open it → edit it or act on it → watch what happens.**
-
-<p align="center">
-  <img src="docs/images/mobile-flow.gif" width="300" alt="Searching for a stack, opening it, restarting it and watching the logs on a phone" />
-</p>
+Recent releases: Dockge can run as a regular user (2.4.0), a phone layout built around find → open → act, a resizable desktop stack list, and port conflicts you can't miss (2.3.x). All versions: [CHANGELOG.md](CHANGELOG.md).
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/images/mobile-stack-list.png" width="240" alt="Mobile stack list with search, filters and port conflict banner" /><br /><b>Find</b></td>
-    <td align="center" width="33%"><img src="docs/images/mobile-stack-overview.png" width="240" alt="Stack overview tab with containers and bottom action bar" /><br /><b>Open</b></td>
-    <td align="center" width="33%"><img src="docs/images/mobile-stack-logs.png" width="240" alt="Logs tab filling the screen" /><br /><b>Watch</b></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="docs/images/mobile-stack-edit.png" width="240" alt="Editing compose.yaml with Deploy, Save and Discard" /><br /><b>Edit</b></td>
-    <td align="center"><img src="docs/images/mobile-stack-menu.png" width="240" alt="More actions menu: Update, Compose Drift Check, Down, Delete" /><br /><b>More actions</b></td>
-    <td align="center"><img src="docs/images/mobile-drift-check.png" width="240" alt="Compose Drift Check results as cards" /><br /><b>Drift check</b></td>
+    <td align="center" width="30%"><img src="docs/images/mobile-flow.gif" width="240" alt="Searching for a stack, opening it, restarting it and watching the logs on a phone" /><br /><b>Phone</b></td>
+    <td align="center"><img src="docs/images/desktop-sidebar-resize.gif" width="560" alt="Dragging the stack list wider and narrower; port badges re-fit as it moves" /><br /><b>Desktop</b></td>
   </tr>
 </table>
-
-- **The stack list is the home screen.** Search by stack name, agent or port; filter by status (Active / Exited / Inactive, with counts) or by **Port conflicts**. Each stack is one card: status, name and its host ports, conflicting ports first and in red.
-- **One section per agent.** With more than one Dockge agent, stacks are grouped under a collapsible header per agent showing running / total counts. Sections start collapsed; searching or filtering opens them so matches are never hidden.
-- **Port conflict banner** at the top of the list names each conflicting port and the stacks publishing it (tap a name to open that stack).
-- **Stack page:** a top bar with back, name and status, and a ⋮ menu for the less common actions (Update, Compose Drift Check, Down, Delete). Three tabs:
-  - **Overview:** which agent the stack runs on, its URLs, and each container with its status, ports and Bash / Restart / Stop.
-  - **Compose:** `compose.yaml`, `.env` and `compose.override.yaml` when present.
-  - **Logs:** the combined stack log, filling the screen (expandable to full screen).
-- **Bottom action bar**, where your thumb is: **Start** or **Restart**, **Stop**, **Update**, **Edit**. While editing it becomes **Deploy**, **Save** and **Discard**. Any action switches to the Logs tab so you see its output live, and the tab shows a dot while it runs.
-- **Menu (☰)** for Stacks, Overview, Compose Drift Check, Console, Settings, Scan Stacks Folder and Logout, so the bottom of the screen is free for the stack actions.
-- **Compose Drift Check** is one tap away (the button beside the search box); on a phone its results are cards with the compose and running image and a Sync button.
-
-<a id="desktop"></a>
-
-### 🖥️ Desktop
-
-**Resizable stack list.** Drag the handle between the stack list and the page to make the list wider or narrower (arrow keys work when the handle is focused; double-click resets it). The width is remembered. Port badges show as many ports as fit the current width, with the rest behind "+N", and a conflicting port is always shown first. When the list gets narrow, the Compose Drift Check button shrinks to its icon so the search box keeps its room.
-
-<p align="center">
-  <img src="docs/images/desktop-sidebar-resize.gif" width="760" alt="Dragging the stack list wider and narrower; port badges re-fit as it moves" />
-</p>
-
-**Resizable terminals** (since 2.2.0). Every terminal panel (stack logs, console, container shell) has a drag handle to make it taller and a button to expand it to full screen; Esc restores it. Each page remembers its own height.
-
-<p align="center">
-  <img src="docs/images/desktop-terminal-resize.gif" width="760" alt="Dragging a stack's terminal taller, expanding it to full screen and restoring it" />
-</p>
-
-**Port conflicts at a glance.** The banner above the stack list lists every host port that more than one running stack publishes, per agent, with links to the stacks involved.
-
-<p align="center">
-  <img src="docs/images/desktop-stack.png" width="760" alt="Desktop stack page with the port conflict banner above the stack list" />
-</p>
-
-<a id="drift-check"></a>
-
-### 🔄 Compose Drift Check
-
-Compose Drift Check (added in this fork in 1.7.0) finds services whose `compose.yaml` pins a different image tag than the container actually running, and **Sync** writes the running tag back into the compose file (comments preserved). In 2.3.0:
-
-- **"Scan All" no longer times out.** It used to run `docker ps` plus two `docker inspect` calls *per container, for every stack*, so any host with more than a handful of containers hit the 30-second limit. A scan now makes three docker calls in total and finishes in a couple of seconds.
-- **On phones** it's one tap from the stack list (the button beside the search box, or ☰ → Compose Drift Check), and per stack from the ⋮ menu.
-- **Results fit the space.** Each mismatch is a card (stack / service, compose image, running image, Sync) on phones and whenever the panel is too narrow for the table, so the Sync button is never scrolled out of view.
-
-<table>
-  <tr>
-    <td align="center"><img src="docs/images/desktop-drift-check.gif" width="480" alt="Scan All finds two mismatches; Sync fixes one" /><br /><b>Desktop:</b> Scan All, then Sync</td>
-    <td align="center"><img src="docs/images/mobile-drift-check.gif" width="260" alt="Drift check on a phone: scan, cards, Sync" /><br /><b>Phone:</b> from the stack list</td>
-  </tr>
-</table>
-
----
-
-<img src="https://github.com/louislam/dockge/assets/1336778/26a583e1-ecb1-4a8d-aedf-76157d714ad7" width="900" alt="" />
-
-View Video: https://youtu.be/AWAlOQeNpgU?t=48
-
-<a id="upstream-differences"></a>
-
-## ↔️ Differences from upstream
-
-What this fork changes about an install, compared with [louislam/dockge](https://github.com/louislam/dockge). Most of the fork is new code added on top (about 6,900 lines across the backend, frontend and shared code, against fewer than 300 changed or removed); the features above add screens and options without changing how an existing setup works. These are the exceptions:
-
-| | Upstream | This fork |
-|---|---|---|
-| **Image** | `louislam/dockge:1` | `ghcr.io/darthrater78/dockge:<version>`, pinned to a release |
-| **Stacks folder in the quickstart** | `/opt/stacks` | `/opt/docker/stacks`. Both are just `DOCKGE_STACKS_DIR`: keep yours, nothing has to move |
-| **What Dockge mounts** | `docker.sock`, its data folder, the stacks folder | The same. The 2.4.0 and 2.4.1 quickstarts mounted all of `/opt/docker`; [how to switch back](#bind-roots) |
-| **User Dockge runs as** | root | root, unless you set `PUID`/`PGID`; then it [drops to that user](#runtime) after fixing ownership of its own folders and stack files (never your apps' data) |
-| **Container hardening** | none | The quickstart adds a read-only filesystem, `no-new-privileges` and dropped capabilities. Only applies if you copy them into your compose file |
-| **Saving a stack** | Writes the file | Checks it with `docker compose` first; `.env` and `global.env` are saved readable by their owner only (`0600`) |
-| **Before a stack starts** | Docker creates missing bind folders as root | Dockge creates missing `./relative` folders inside the stack, owned by its user |
-| **Database** | | Three migrations: an agent name column, a version-sync history table, and remote agent passwords encrypted at rest |
-
-**Going back to upstream:** your stacks and compose files work unchanged with upstream Dockge. The database mostly does too, except remote agents: their passwords are encrypted by this fork, and upstream can't read them, so re-enter each agent's password after switching (or remove and re-add the agents). Upstream logs "Database migration failed, you may be downgrading Dockge" on start because of the extra migrations; that warning is harmless. Back up the data folder before switching either way.
-
----
-
-## 🤖 Built by Claude Code
-
-> **Every line of new code in this fork — from v1.5.2 onward — was written entirely by [Claude Code](https://claude.ai/code), Anthropic's AI coding agent.** No human wrote the implementation code. A human ([@darthrater78](https://github.com/darthrater78)) directed the work: describing features, reviewing PRs, and approving releases, but Claude Code authored all source changes, security fixes, documentation, and release engineering across **8 feature releases and 33+ commits**.
-
-### What Claude Code built in this fork
-
-Starting from [Chris Cooper's fork](https://github.com/cmcooper1980/dockge) of [louislam/dockge](https://github.com/louislam/dockge) (upstream v1.4.2), Claude Code implemented the following — each delivered as a branch, PR, security-reviewed build, and tagged release:
-
-| Version | What was built | Scope |
-|---------|---------------|-------|
-| **v1.5.2** | Agent name column migration fix | Database migration that existing installs missed |
-| **v1.5.3** | Security hardening | Path traversal fix, JWT expiry (30-day), XSS sanitization, password model fix, nightly CI workflow |
-| **v1.6.0** | REST API (ported) | Ported from [finder39/dockge](https://github.com/finder39/dockge) and adapted to this fork's architecture — 13 endpoints, API key auth, stack validation, update history, auto-update scheduler |
-| **v1.6.1** | Settings UI | Frontend for API key management, cron scheduler, per-stack auto-update toggle |
-| **v1.6.2** | Stack lifecycle API | `POST /api/stacks/:name/down` endpoint completing the full start/stop/restart/down lifecycle |
-| **v1.6.3** | API data fix | Container state, status, health, and image info populated in `GET /api/stacks` responses |
-| **v1.7.0** | Compose Drift Check | Detect image tag drift between running containers and compose files, one-click sync, YAML-comment-preserving writes, sync history with revert, multi-host agent support |
-| **v1.7.1** | Global drift scan | "Scan All" button on Home page scanning every stack on every connected agent |
-| **v1.8.0** | Feature removal & rename | Removed skopeo-based image update detection (too complex, unreliable), renamed to "Compose Drift Check" |
-| **v1.8.1** | Dark mode & reliability | Fixed Bootstrap CSS overrides breaking dark mode, added 30s agent timeout for offline nodes |
-| **v1.8.2** | Security patch | Updated ws (HIGH — memory disclosure/DoS), yaml (MODERATE — stack overflow), express (body-parser DoS, ReDoS, qs bypass) |
-| **v1.9.0** | 2FA & encryption | TOTP two-factor authentication, `.env` file persistence on stack save, AES-256-GCM encryption for agent credentials at rest, terminal shell allowlist |
-| **v1.9.1** | Update button restored | Re-added compose pull + up update button and API endpoint removed in 1.8.0, fixed About page links |
-| **v1.9.2** | Fork independence & security | Docker images from fork GHCR registry, dependency security fixes (mysql2, vite), CI cleanup |
-| **v2.0.0** | Port visibility | Configured-port badges and HOST badge in the stack list, cross-stack port conflict detection scoped per agent, dev CI workflow, pre-release Docker tag support |
-| **v2.1.0** | CI hardening, CVE fixes & mobile UX | SHA-pinned GitHub Actions, tag-on-default-branch release verification, Dependabot config; `npm overrides` closing Critical/High CVEs in `tar`/`lodash`/`glob` with no upstream fix available; resizable terminal panel; fixed mobile navigation (`isMobile` was referenced everywhere but never defined, hiding all nav on phones) |
-| **v2.2.0** | Expandable terminal, mobile polish & audit fixes | Terminal panels on the stack, console and container pages can be dragged taller or expanded to full screen; fixed terminals hiding their newest lines (xterm measured before the web font loaded); server pty now follows the panel size; mobile header and tidier stack actions; release workflow now requires passing CI and a matching tag; anti-framing headers (`DOCKGE_ALLOW_FRAMING` opt-out); private vulnerability reporting |
-| **v2.3.0** | Mobile redesign, resizable desktop list & fast drift scan | Phone layout rebuilt around find → edit → act: searchable stack list with status filters and collapsible per-agent sections, stack page with Overview / Compose / Logs tabs and a bottom action bar; port-conflict banner naming the ports and stacks; conflicting ports no longer hidden behind the "+N" badge; resizable stack list on desktop with port badges that fit its width; Compose Drift Check reachable on mobile and no longer times out on larger hosts (docker queried once per scan instead of per stack and container); `:dev` GHCR channel for branch builds |
-| **v2.3.1** | Port conflicts you couldn't see | Ports written as `${VAR}` are read with the values from the stack's `.env` and `global.env`, ports in `compose.override.yaml` count, and port ranges are matched port by port; Save and Deploy now warn when a host port is already used by another stack (running or not) or by a running container outside any stack |
-| **v2.4.0** | Runs as a regular user, bind folders without `chown` | Entrypoint drops root to `PUID`/`PGID` after fixing ownership of Dockge's own folders and joining the docker.sock group (old installs unchanged); missing bind-mount folders created before `up` (relative, `${VAR}`, and under `DOCKGE_BIND_ROOTS`); hardened quickstart (read-only filesystem, `no-new-privileges`, capabilities dropped); `.env` saved `0600`; Trivy scan gates every image push and the release workflow creates the GitHub release; dependency CVE fixes folded in from the unshipped 2.3.2 |
-| **v2.4.1** | Node.js security update | Base image moved to Node.js 22.23.4 for the October 2026 Node.js security release (Brotli decoder RCE, TLS hostname bypasses); healthcheck rebuilt with Go 1.27.3; follow-redirects and vite dev-dependency fixes |
-| **v2.4.2** | Dependency fixes, upstream mount layout | body-parser 2.4.0 (High DoS) and Moderate fixes; quickstart and docs mount only the data and stacks folders, as upstream; `extra/narrow-bind-root.sh` for installs on the old quickstart; "Differences from upstream" section; shellcheck in CI |
-
-### How it worked
-
-1. **Human direction** — The maintainer described what to build ("add a REST API", "detect image drift", "add 2FA") and provided architectural preferences
-2. **Claude Code implementation** — Claude Code read the existing codebase, designed the changes, wrote the code, and produced working builds
-3. **Security gate** — Every build went through a security scan checking for hardcoded secrets, injection vectors, path traversal, weak crypto, and dependency CVEs before any commit
-4. **Review & release** — The maintainer reviewed each PR, tested the build, and approved the release. Claude Code authored the release notes, tags, and changelog entries
-
-All Claude-authored commits carry a `Co-Authored-By: Claude` trailer in the git history. PR branches are prefixed with `claude/`.
-
-### The Dev Skills gate system
-
-Starting with later releases, development used a custom **Dev Skills** discipline — a structured set of mandatory gates that Claude Code enforces on itself before any code can be committed, pushed, or released. This changed the quality of the output significantly compared to earlier releases that relied on ad-hoc review.
-
-The gate system works like a pre-flight checklist that cannot be skipped:
-
-```
-🔢 VERSION  →  🔨 BUILD  →  🔒 SECURITY  →  📄 DOCS  →  📦 RELEASE  →  🚀 SHIP
-```
-
-**What each gate catches:**
-
-1. **Version Gate** — Every version-carrying file in the project (package.json, source code, UI strings) must agree. Claude Code greps the entire codebase for hardcoded version strings — a missed version in a window title or "About" dialog is a gate failure. The repository URL must also be present in manifests.
-
-2. **Build Gate** — A test build must be created and verified working before anything is committed. Not "it compiled" — the app must start, the golden path must work, and no regressions should be visible.
-
-3. **Security & Quality Gate** — This is where the biggest improvement happened. After every successful build, Claude Code runs a full scan of all source files against a detailed security checklist:
-   - **Hard stops** (must fix): hardcoded secrets, SQL injection, `shell=True` with user input, disabled TLS, pickle on untrusted data, path traversal, missing auth, debug mode in production, weak crypto
-   - **Quality review**: N+1 queries, god functions (>40 lines), deep nesting, wrong data structures, string concatenation in loops, unbounded caches, missing database indexes
-   - The security scan also runs the project's native `npm audit` and checks every dependency for typosquatting, maintenance health, and known CVEs
-
-4. **Docs Gate** — Changelog entries, README updates for new/changed/removed features, and stale documentation are all checked before release.
-
-5. **Release & Ship Gates** — Branch protection is enforced (never commit directly to main), release notes must be reviewed and approved, and the final ship requires explicit human confirmation.
-
-**How this made the image better:**
-
-- **v1.5.3's security hardening** (path traversal, JWT expiry, XSS fixes) came directly from the security gate catching patterns in the existing codebase
-- **v1.8.2's dependency patches** (ws memory disclosure, yaml stack overflow, express DoS) were surfaced by the mandatory `npm audit` step
-- **v1.9.0's terminal shell allowlist** and **agent credential encryption** were security gate findings — Claude Code flagged that terminal commands accepted arbitrary shells and that agent passwords were stored in plaintext, then fixed both before the build could pass
-- **Earlier releases without the gate system** shipped features that later had to be removed (the skopeo-based image update detection in v1.8.0) — the quality gate's complexity review would likely have flagged that design as too fragile before it shipped
-
-The gate system means no commit happens without a security scan, no release ships without verified docs, and no push goes out without the maintainer explicitly typing "push." It turns Claude Code from a code generator into a disciplined release engineer.
-
-### Community contributions cherry-picked into this fork
-
-This fork stands on the work of the upstream project and its community. The following features were cherry-picked from open pull requests on [louislam/dockge](https://github.com/louislam/dockge) and integrated before Claude Code development began:
-
-| Contributor | Feature | Upstream PR |
-|-------------|---------|-------------|
-| [Elias Floreteng](https://github.com/eliasfloreteng) | Compose override editor — edit `compose.override.yaml` alongside the main compose file | [#23](https://github.com/louislam/dockge/pull/23) |
-| [Richy HBM](https://github.com/RichyHBM) | PUID/PGID support — set stack file/directory ownership | [#83](https://github.com/louislam/dockge/pull/83) |
-| [Kevin (syko9000)](https://github.com/syko9000) | Global `.env` editor and usage in docker operations | [#387](https://github.com/louislam/dockge/pull/387) |
-| [Julian (skl)](https://github.com/skl) | Agent friendly name — set/update display names for remote agents | [#414](https://github.com/louislam/dockge/pull/414) |
-| [CampaniaGuy](https://github.com/CampaniaGuy) | Theme options — light/dark/auto theme selection in settings | [#575](https://github.com/louislam/dockge/pull/575) |
-| [Niraj Yadav](https://github.com/nickkdev) | Remove terminal buffer console logging | [#582](https://github.com/louislam/dockge/pull/582) |
-| [Lance Cain (mizady)](https://github.com/mizady) | Container control buttons — start/stop/restart individual containers | [#649](https://github.com/louislam/dockge/pull/649) |
-| [Justin Wiebe](https://github.com/justwiebe) | Resource usage stats on the compose page (CPU, memory per container) | [#700](https://github.com/louislam/dockge/pull/700) |
-| [Joshua Anderson (andersmmg)](https://github.com/andersmmg) | Replace textarea editor with CodeMirror (syntax highlighting, line numbers) | [#786](https://github.com/louislam/dockge/pull/786) |
-| [Matthew McConnell (maca134)](https://github.com/maca134) | Improved stack list UI when using agents | [#800](https://github.com/louislam/dockge/pull/800) |
-| [Dimariqe](https://github.com/Dimariqe) | Clipboard copy/paste support in the web terminal | [#822](https://github.com/louislam/dockge/pull/822) |
-| [nullcat](https://github.com/nullcat) | Fix `isComposeExitClean` TypeError when compose is stopped | [#37](https://github.com/louislam/dockge/pull/37) |
-| [Aymen Djellal](https://github.com/aymen-djellal) | Improve JSON parsing with error handling | [#25](https://github.com/louislam/dockge/pull/25) |
-| [Grant Birkinbine](https://github.com/GrantBirki) | Update json-yaml-validate to latest version | [#446](https://github.com/louislam/dockge/pull/446) |
-
-**REST API origin — [finder39/dockge](https://github.com/finder39/dockge):**
-The REST API framework (v1.6.0) was ported from finder39's Dockge fork ("Dockge Managed"), which implemented the original API router, auto-update scheduler, image update detection via skopeo, and update history tracking. Claude Code adapted the code to work with this fork's architecture and added backward compatibility for mixed-version agent deployments.
-
-**Base fork — [Chris Cooper (cmcooper1980)](https://github.com/cmcooper1980):**
-This repository is forked from [cmcooper1980/dockge](https://github.com/cmcooper1980/dockge). Chris's fork contributed, among other work:
-- Cloudflare Turnstile CAPTCHA integration on login
-- "Update All" button for bulk stack updates
-- v-html XSS vulnerability fixes and npm audit cleanup
-- Variable highlighting in the CodeMirror editor
-- Agent display logic improvements
-- Compose override editor refinements (dynamic titles, component naming)
-
-**Upstream — [Louis Lam (louislam)](https://github.com/louislam):**
-Dockge itself is Louis Lam's project. This fork (by way of [Chris Cooper's fork](https://github.com/cmcooper1980/dockge)) is built on top of the [original Dockge](https://github.com/louislam/dockge) at v1.4.2, which includes the core compose manager, interactive terminal, multi-agent support, and the reactive real-time UI.
-
----
 
 ## ⭐ Features
 
-- 📱 (2.3.0 🆕) Mobile-first phone layout — find a stack, edit it, act on it and watch its logs, all within thumb reach ([details](#mobile))
-- ↔️ (2.3.0 🆕) Resizable stack list on desktop, with port badges that fill whatever width you give it ([details](#desktop))
-- 🚦 (2.3.0 🆕) Port conflict banner — every host port published by more than one running stack, and which stacks they are
-- 🛑 (2.3.1 🆕) Port check on Save and Deploy — warns when a host port is already used by another stack (running or not) or a running container, including ports set through `.env` variables, `compose.override.yaml` and port ranges
-- 👤 (2.4.0 🆕) Runs as a regular user — set `PUID`/`PGID` and Dockge fixes the ownership of its own folders, then drops root ([details](#runtime))
-- 📁 (2.4.0 🆕) Creates a stack's missing bind-mount folders inside the stack before it starts, owned by Dockge's user, so containers can write to them without a `chown` (folders outside the stacks folder are left to Docker, as upstream)
-- ✅ (2.4.0 🆕) Save checks the compose file with `docker compose` first and keeps the old file if the new one is invalid
-- 🛡️ (2.4.1) Security update: Node.js 22.23.4 and a rebuilt healthcheck ([release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.1))
-- 🛡️ (2.4.2) Dependency security fixes, and Dockge mounts only its data and stacks folders, as upstream ([release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.2))
-- 🧑‍💼 Manage your `compose.yaml` files
-  - Create/Edit/Start/Stop/Restart/Update/Delete
-- ⌨️ Interactive Editor for `compose.yaml`
-- 🦦 Interactive Web Terminal
-- 🕷️ (1.4.0 🆕) Multiple agents support - You can manage multiple stacks from different Docker hosts in one single interface
+- 🧑‍💼 Create, edit, start, stop, restart, update and delete your `compose.yaml` stacks, with an interactive editor and web terminal
+- 📙 File based: your compose files stay on your drive, and normal `docker compose` commands keep working
+- 🕷️ Several Docker hosts (agents) in one interface
+- 📱 A phone layout built for one hand, and a resizable stack list on desktop
+- 🚦 Port conflicts: a banner for ports published twice, and a check on Save and Deploy
+- 🔄 Compose Drift Check: find services whose running image differs from the compose file, and sync it back
+- 👤 Runs as a regular user with `PUID`/`PGID`
+- 🔑 Two-factor login (TOTP), optional Cloudflare Turnstile CAPTCHA
+- 🌐 [REST API](#rest-api) and a [Home Assistant integration](docs/install.md#optional-home-assistant-integration-hacs)
 - 🏪 Convert `docker run ...` commands into `compose.yaml`
-- 📙 File based structure - Dockge won't kidnap your compose files, they are stored on your drive as usual. You can interact with them using normal `docker compose` commands
-- 🧩 (1.5.1 🆕) Compose override editor - Edit `compose.override.yaml` alongside your main compose file, when present
-- 🔐 (1.5.1 🆕) Optional Cloudflare Turnstile CAPTCHA on login
-- 🌐 (1.6.0 🆕) REST API for external automation (CI/CD, scripts, monitoring)
-- 🔄 (1.7.0 🆕) Compose Drift Check — detect and fix image tag drift between running containers and compose files (2.3.0: fast "Scan All", works on phones — [details](#drift-check))
-- 🔑 (1.9.0 🆕) Two-Factor Authentication (TOTP) — protect your account with app-based 2FA
 
-<img src="https://github.com/louislam/dockge/assets/1336778/cc071864-592e-4909-b73a-343a57494002" width=300 />
-
-- 🚄 Reactive - Everything is just responsive. Progress (Pull/Up/Down) and terminal output are in real-time
-- 🐣 Easy-to-use & fancy UI - If you love Uptime Kuma's UI/UX, you will love this one too
-
-![](https://github.com/louislam/dockge/assets/1336778/89fc1023-b069-42c0-a01c-918c495f1a6a)
+The full tour, with screenshots of each screen: [docs/features.md](docs/features.md).
 
 <a id="install"></a>
 
-## 🔧 How to Install
+## 🔧 Install
 
-Requirements:
-- [Docker](https://docs.docker.com/engine/install/) 20+ / Podman
-- (Podman only) podman-docker (Debian: `apt install podman-docker`)
-- OS:
-  - Major Linux distros that can run Docker/Podman such as:
-     - ✅ Ubuntu
-     - ✅ Debian (Bullseye or newer)
-     - ✅ Raspbian (Bullseye or newer)
-     - ✅ CentOS
-     - ✅ Fedora
-     - ✅ ArchLinux
-  - ❌ Debian/Raspbian Buster or lower is not supported
-  - ❌ Windows (Will be supported later)
-- Arch: armv7, arm64, amd64 (a.k.a x86_64)
+Needs Docker 20+ (or Podman with `podman-docker`) on Linux, on amd64, arm64 or armv7. Details: [requirements](docs/install.md#requirements).
 
-### Basic
-
-- Compose file and Dockge's data: `/opt/docker/dockge`
-- Stacks directory: `/opt/docker/stacks`
-- Port: 5001
+This sets Dockge up in `/opt/docker/dockge`, with your stacks in `/opt/docker/stacks`, on port 5001:
 
 ```bash
 {
@@ -323,28 +75,12 @@ cd "$D"
 }
 ```
 
-Paste it as a whole: the `{ }` makes your shell read every line before running any, so the IP question waits for you. Press Enter to accept the suggested address (your LAN IP, so Dockge isn't reachable on other interfaces such as a VPN or a public one), type a different IP, or type `all` to listen on every interface. The last line prints the address that answered.
+Paste it as a whole: the `{ }` makes your shell read every line before running any, so the IP question waits for you. Press Enter to accept your LAN IP (so Dockge isn't reachable on other interfaces, such as a VPN or a public one), type a different IP, or type `all`.
 
-Dockge then runs as user `1000:1000` (see [Running as a regular user](#runtime)). It creates `data/` itself. It sees only its own data folder and `/opt/docker/stacks`, like upstream Dockge, not your apps' data. Bind-mount folders outside the stacks folder (such as `/opt/docker/<app>`) are created by Docker, owned by root, as upstream; if an app runs as a regular user, create its folder first (`mkdir -p`, then `chown`).
+Dockge then runs as user `1000:1000` and sees only its data folder and `/opt/docker/stacks`, like upstream. Already have Dockge in another folder (such as `/opt/dockge`)? Nothing needs to move. Another stacks folder or port: see [docs/install.md](docs/install.md#other-stacks-folders-or-ports).
 
-Already running Dockge from another folder (such as `/opt/dockge` from older instructions)? Nothing needs to move; these paths are just the recommended layout for new installs.
-
-### Advanced
-
-To use a different stacks directory or port, generate a compose file with the [interactive generator](https://dockge.kuma.pet) or its URL, and save it in `/opt/docker/dockge`:
-
-```bash
-curl "https://dockge.kuma.pet/compose.yaml?port=5001&stacksPath=/opt/docker/stacks" --output compose.yaml
-```
-
-Then set its `image:` to `ghcr.io/darthrater78/dockge:2.4.2` (the generator uses the upstream image). To run Dockge as a regular user instead of root, add under `environment:` (both are needed):
-
-```yaml
-      - PUID=1000
-      - PGID=1000
-```
-
-### -OR- copy and paste
+<details>
+<summary><b>Or copy the compose file by hand</b></summary>
 
 Save this as `/opt/docker/dockge/compose.yaml` (create the folders first: `sudo mkdir -p /opt/docker/dockge /opt/docker/stacks && sudo chown "$USER": /opt/docker/dockge /opt/docker/stacks`), then run `docker compose up -d` in that folder:
 
@@ -404,138 +140,13 @@ services:
 #   See "Installed with the 2.4.0 or 2.4.1 quickstart?" in the README.
 ```
 
-<a id="runtime"></a>
-
-## Running as a regular user (PUID/PGID)
-
-With `PUID` and `PGID` set (the quickstart uses `1000`), Dockge starts as root for a moment, then:
-
-1. takes ownership of its own folders: `data/`, the stacks folder, each stack's folder and its `compose.yaml` / `compose.override.yaml` / `.env`. Your apps' data is never touched;
-2. joins the group that owns `/var/run/docker.sock`, whatever its number is on your host;
-3. switches to `PUID:PGID` with no Linux capabilities, and runs from there.
-
-No `chown`, no `getent group docker`, no `group_add`. Before every Deploy, Start, Restart or Update, Dockge also creates the stack's missing bind-mount folders, owned by `PUID:PGID` with Docker's usual `0755`, so containers that run as `1000` can write to them. Without this, Docker creates them as `root` and you `chown` them by hand. It covers:
-
-- `./relative` folders inside the stack,
-- paths that use `${VARIABLES}` from the stack's `.env` or `global.env`.
-
-It skips `~` paths, variables that aren't set, anything outside the stacks folder (such as `/opt/docker/<app>`), and paths that go through a symlink; Docker handles those as before. `.env` and `global.env` are saved readable by their owner only (`0600`).
-
-| Your compose file | What happens |
-|---|---|
-| No `PUID`/`PGID`, no `user:` (installs before 2.4.0) | Runs as root, **exactly as before**. Nothing changes until you add `PUID`/`PGID` |
-| `PUID`/`PGID` set | Starts as root, fixes ownership, switches to `PUID:PGID` (above) |
-| `user: "1000:989"` (with or without `group_add`) | Kept as is: Dockge runs as that user from the start and can't change ownership. Bind-mount folders are still created, owned by that user |
-
-**Already running Dockge?** See [Upgrading to 2.4.0](#upgrade): what changes if you only update the image, and how to move to this setup.
-
-**Hardening in the quickstart:** a read-only container filesystem (scratch files go to an in-memory `/tmp`), `no-new-privileges`, and every capability dropped except the five the start-up step needs (`CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETUID`, `SETGID`). Dockge itself runs with none.
-
-**What it doesn't change:** access to `docker.sock` is root-equivalent on the host, whoever holds it. Running as a regular user keeps files out of root's hands, and keeps the web console from being a root shell, but it is not a sandbox. Keep Dockge off the internet: bind the port to a LAN address (`192.168.1.10:5001:5001`) or put it behind a VPN or a TLS reverse proxy, turn on 2FA, and leave the console off unless you need it.
-
-**Private registries:** with `PUID`/`PGID`, logins are kept in `data/docker-config` (root can't share its `/root/.docker` with the new user). A `/root/.docker` mount from older instructions is copied there once on the first start.
-
-<a id="bind-roots"></a>
-
-### Installed with the 2.4.0 or 2.4.1 quickstart?
-
-Those quickstarts mounted all of `/opt/docker` into Dockge and set `DOCKGE_BIND_ROOTS=/opt/docker`, so Dockge could create your apps' bind folders. That also let Dockge read and write every app's data, which it doesn't need. The quickstart now mounts only Dockge's data folder and the stacks folder, like upstream. To switch an existing install back, run this on the Docker host:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/darthrater78/dockge/master/extra/narrow-bind-root.sh -o narrow-bind-root.sh
-less narrow-bind-root.sh     # read it first: it changes nothing until you answer y
-bash narrow-bind-root.sh
-```
-
-It changes two lines of Dockge's `compose.yaml` (the `/opt/docker` volume becomes the stacks folder, `DOCKGE_BIND_ROOTS` is removed) and the quickstart comments that described them, then shows a diff and waits for `y`. Nothing moves: your stacks and app data stay where they are. Before asking, it checks that no stack reads files Dockge would no longer see (`env_file`, configs, build folders outside the stacks folder), and lists any. It backs up the compose file to `~/dockge-backup-<date>`, restarts only Dockge, and prints an undo command. `/opt/docker` stays owned by your user; `sudo chown root:root /opt/docker` gives it back to root if you want.
-
-<a id="upgrade"></a>
-
-## ⬆️ Upgrading to 2.4.0
-
-### If you only change the image tag
-
-The [one-line update](#update) changes only the image tag. What Dockge does then depends on what your compose file already has:
-
-| Your compose file today | After updating only the image |
-|---|---|
-| No `PUID`/`PGID`, no `user:` (most installs) | **Runs as root, exactly as before.** You will notice three things: Save checks the file with `docker compose` first; missing `./` bind-mount folders are created before a stack starts (as root, as Docker did); `.env` and `global.env` become readable by their owner only (`0600`) the next time they are saved. If root owns them, read them on the host with `sudo` |
-| `PUID`/`PGID` set. Before 2.4.0 these only set the owner of stack files, while Dockge itself ran as root | **Dockge now runs as that user.** On start it takes ownership of its data folder, the stacks folder and each stack's compose and `.env` files (not your apps' data), joins the group of `docker.sock`, and copies registry logins from a `/root/.docker` mount to `data/docker-config`. The web console runs as that user, not root. If `docker.sock` belongs to group `root` (some NAS and Docker Desktop setups), Dockge stays root and says so in its log |
-| `user: "<uid>:<gid>"` (the old non-root workaround) | **Unchanged:** runs as that user. Bind-mount folders inside the stacks folder are now created as that user. If `PUID`/`PGID` are also set and differ, a warning appears after login |
-
-In every case your login, settings and stacks are kept, and your stacks keep running while Dockge restarts. What an image update does **not** add: the read-only filesystem, `no-new-privileges` and the dropped capabilities. Those come from the compose file, below. Your stacks and app data stay where they are; nothing has to move.
-
-### Moving to the recommended setup
-
-**With the migration script** (any install started with `docker compose`). Run it on the Docker host, as your normal user:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/darthrater78/dockge/master/extra/migrate-to-puid.sh -o migrate-to-puid.sh
-less migrate-to-puid.sh      # read it first: it is short and changes nothing until you answer y
-bash migrate-to-puid.sh
-```
-
-It reads your running Dockge (compose file, port and IP, data and stacks folders, other settings such as `TZ` or Turnstile keys), then asks for `PUID`/`PGID` (your ids by default). Your stacks mount stays as it is. It then shows the new `compose.yaml` and a diff, and waits for `y`. Then it backs up the old file and the data folder to `~/dockge-backup-<date>`, switches, waits until Dockge answers, and prints the address and a ready-made undo command. It refuses, without changing anything, when the compose file has something it would lose: other services, custom networks, `env_file`, `${VARIABLE}` substitution or unknown settings. Use the steps below for those. The [one-line update](#update) keeps working afterwards.
-
-**By hand:**
-
-1. **Back up.** In the folder with Dockge's `compose.yaml`: `docker compose stop dockge`, then copy `compose.yaml` and Dockge's data folder (the one mounted at `/app/data`) somewhere safe.
-2. **Edit `compose.yaml`**, keeping your own port and data folder:
-   - remove `user:` and `group_add:` if you have them;
-   - add `PUID` and `PGID` with your own ids (`id -u`, `id -g`). Use your own group, not the docker group: that one is found automatically;
-   - keep your stacks mount and `DOCKGE_STACKS_DIR` as they are;
-   - add `read_only`, `tmpfs`, `security_opt`, `cap_drop` and `cap_add` from the [quickstart compose file](#install);
-   - set the image tag to the new version.
-3. **Start it:** `docker compose up -d`. `docker compose logs dockge | grep entrypoint` should show `running as uid … gid … (groups …)`.
-4. **To go back,** restore the saved `compose.yaml` and run `docker compose up -d`. The data folder doesn't need restoring: the files stay usable by the old setup.
-
-<details>
-<summary><b>Example: from <code>user: "1000:989"</code> (the old non-root workaround) to PUID/PGID</b></summary>
-
-A common older setup keeps the compose file and Dockge's data in the same folder:
-
-```yaml
-    user: "1000:989"           # remove: Dockge switches user itself now
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /opt/docker/dockge:/app/data
-      - /opt/docker/stacks:/opt/docker/stacks
-```
-
-Change it to this. The data folder stays where it is, so nothing has to move:
-
-```yaml
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /opt/docker/dockge:/app/data
-      - /opt/docker/stacks:/opt/docker/stacks
-    environment:
-      - PUID=1000                    # your `id -u`
-      - PGID=1000                    # your `id -g` (not the docker group: that one is found automatically)
-      - DOCKGE_STACKS_DIR=/opt/docker/stacks
-    read_only: true
-    tmpfs:
-      - /tmp
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add: [ CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID ]
-```
-
-Back up first (`docker compose stop dockge`, then copy `compose.yaml` and the data folder), then `docker compose up -d`. The log shows `[entrypoint] running as uid 1000 gid 1000 (groups 1000,989)`. Your stacks keep running while only Dockge restarts. To go back, restore the old `compose.yaml` and `docker compose up -d` again: the files stay usable by the old setup, so the data doesn't need restoring.
-
 </details>
 
 <a id="update"></a>
 
-## How to Update
+## 🔄 Update
 
-The compose file pins a release (`ghcr.io/darthrater78/dockge:2.4.2`) so an update never happens by surprise.
-
-### One-line update
-
-Dockge can't update itself (restarting its own container would cut the update off halfway), so run this on the Docker host. Set `V` to the [latest release](https://github.com/darthrater78/dockge/releases/latest):
+The compose file pins a release, so an update never happens by surprise. Run this on the Docker host, with `V` set to the [latest release](https://github.com/darthrater78/dockge/releases/latest):
 
 ```bash
 V=2.4.2; F=/opt/docker/dockge/compose.yaml
@@ -545,541 +156,46 @@ S=; docker ps >/dev/null 2>&1 || S=sudo; $S docker pull ghcr.io/darthrater78/doc
   && echo "✅ Dockge updated to $V" || echo "❌ Update stopped: see the error above"
 ```
 
-1. **Pulls the new image first.** If that version doesn't exist, it stops before anything changes.
-2. **Changes only the image tag** in your compose file, keeping the original as `compose.yaml.bak`. Ports, volumes and environment are untouched.
-3. **Recreates the Dockge container** on the new image and shows its status. Your stacks keep running; only Dockge restarts.
+It pulls the new image first (and stops if that version doesn't exist), changes only the image tag in your compose file (keeping the old one as `compose.yaml.bak`), and recreates the Dockge container. Your stacks keep running. Roll back with `mv /opt/docker/dockge/compose.yaml.bak /opt/docker/dockge/compose.yaml` and the same `docker compose -f … up -d dockge`.
 
-It changes nothing else: see [If you only change the image tag](#upgrade) for what that means for your setup, and how to move to the recommended one. It works from any folder, and uses `sudo` automatically if your user isn't allowed to run `docker` directly. Roll back with `mv /opt/docker/dockge/compose.yaml.bak /opt/docker/dockge/compose.yaml` and the same `docker compose -f … up -d dockge`.
+Compose file somewhere else, or want `:latest`? See [Updating: other setups](docs/install.md#updating-other-setups).
 
-**Compose file somewhere else?** Ask Docker where it was started from, and use that path as `F`:
+<a id="upgrade"></a>
 
-```bash
-sudo docker ps -a \
-  --format '{{.Names}}  →  {{.Label "com.docker.compose.project.config_files"}}' \
-  | grep -i dockge
-```
+## ⬆️ Already running Dockge?
 
-### Always on the newest release
+- **Coming from before 2.4.0:** updating only the image tag keeps Dockge running as root, as before. To run it as a regular user with the hardened compose file, use the migration script: [Upgrading to 2.4.0](docs/install.md#upgrade).
+- <a id="runtime"></a>**What `PUID`/`PGID` do:** Dockge fixes the ownership of its own folders, joins the docker.sock group and drops root. Your apps' data is never touched. [Running as a regular user](docs/install.md#runtime).
+- <a id="bind-roots"></a>**Installed with the 2.4.0 or 2.4.1 quickstart** (it mounted all of `/opt/docker`)? [`extra/narrow-bind-root.sh`](docs/install.md#bind-roots) switches you to the upstream layout without moving any data.
 
-Prefer not to pin? Use `ghcr.io/darthrater78/dockge:latest` in your compose file, then update with:
+<a id="docs"></a>
 
-```bash
-cd /opt/docker/dockge && docker compose pull && docker compose up -d
-```
+## 📚 Docs
 
-## Optional: Cloudflare Turnstile CAPTCHA
+| Page | What's in it |
+|---|---|
+| [docs/install.md](docs/install.md) | Requirements, `PUID`/`PGID` and hardening, upgrading and migration, Turnstile, iframe embedding, Home Assistant |
+| [docs/features.md](docs/features.md) | Every screen, on phone and desktop, and the full feature list |
+| <a id="rest-api"></a>[docs/api.md](docs/api.md) | REST API: authentication, endpoints, examples, agent compatibility |
+| <a id="upstream-differences"></a>[docs/upstream.md](docs/upstream.md) | Differences from upstream (and switching back), how Claude Code built this fork, cherry-picked community work |
+| <a id="release-notes"></a>[CHANGELOG.md](CHANGELOG.md) | Release notes for every version |
+| [SECURITY.md](SECURITY.md#security-architecture) | How Dockge handles security, and how to report an issue |
 
-To require a CAPTCHA challenge on the login page, set both of the following environment variables on the Dockge container. If either is unset, CAPTCHA verification is skipped.
+## 🗣️ Community
 
-```
-      - TURNSTILE_SITE_KEY=<your Turnstile site key>
-      - TURNSTILE_SECRET_KEY=<your Turnstile secret key>
-```
-
-Keys can be created in the [Cloudflare dashboard](https://developers.cloudflare.com/turnstile/get-started/).
-
-## Optional: Embedding Dockge in a dashboard
-
-By default Dockge refuses to be shown inside an iframe on another site (`X-Frame-Options: SAMEORIGIN`, `frame-ancestors 'self'`), because a page that frames it could trick you into clicking Docker actions. If you embed Dockge in a dashboard such as Home Assistant or Organizr, set:
-
-```
-      - DOCKGE_ALLOW_FRAMING=true
-```
-
-Only do this if Dockge is not reachable from untrusted networks.
-
-## Optional: Home Assistant integration (HACS)
-
-**[darthrater78/ha-dockge](https://github.com/darthrater78/ha-dockge)** is a custom Home Assistant integration that adds your Dockge stacks and containers to Home Assistant so you can watch and control them from there:
-
-- A sensor for each container showing its state (running, exited, etc.), image and health
-- Start, Stop, Restart and Down buttons for each stack
-- `dockge.start_stack`, `dockge.stop_stack`, `dockge.restart_stack` and `dockge.system_prune` services for automations
-- Support for multiple Dockge agents, each shown as its own device
-
-**This fork is required.** The integration talks to Dockge through the [REST API](#rest-api), which the original Dockge does not have.
-
-The integration is not in the default HACS store. Add it to HACS as a custom repository:
-
-1. In Dockge, set an API key (`DOCKGE_API_KEY`, see [Authentication](#authentication)).
-2. In HACS, open the menu (three dots, top right) and choose **Custom repositories**. Add `https://github.com/darthrater78/ha-dockge` with category **Integration**.
-3. Download **Dockge** in HACS and restart Home Assistant.
-4. Go to **Settings > Devices & Services > Add Integration**, search for **Dockge**, and enter your Dockge URL (for example `http://192.168.1.100:5001`) and the API key.
-
-Use an `https://` URL where you can: the API key is sent with every request. For a dashboard card, see [Dockge Card](https://github.com/darthrater78/dockge-card).
-
-<a id="rest-api"></a>
-
-## REST API
-
-*The API framework is ported from [finder39/dockge](https://github.com/finder39/dockge) ("Dockge Managed"), which wrote the original API router, auto-update scheduler and update history; it was adapted to this fork's architecture in v1.6.0.*
-
-Dockge v1.6.0 introduces a REST API for managing stacks programmatically. The API runs on the master node only — agents do not need any changes and continue to communicate via Socket.IO.
-
-### Authentication
-
-All API endpoints require a static API key passed in the `X-API-Key` header.
-
-Set your API key via environment variable:
-```
-      - DOCKGE_API_KEY=your-secret-api-key-here
-```
-
-Or set it at runtime through the UI/socket settings. The key is stored as a SHA-256 hash.
-
-### Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/stacks` | List all stacks (local and remote agents) |
-| `GET` | `/api/stacks/:name` | Get details for a single stack |
-| `POST` | `/api/stacks/:name/start` | Start a stack |
-| `POST` | `/api/stacks/:name/stop` | Stop a stack |
-| `POST` | `/api/stacks/:name/restart` | Restart a stack |
-| `POST` | `/api/stacks/:name/update` | Pull images and restart a stack |
-| `POST` | `/api/stacks/:name/down` | Tear down a stack |
-| `GET` | `/api/version-sync/scan` | Scan for image tag mismatches between compose files and running containers |
-| `POST` | `/api/version-sync/sync` | Sync a specific service's compose image to the running version |
-| `POST` | `/api/version-sync/sync-all` | Sync all mismatched services for a stack |
-| `GET` | `/api/version-sync/history` | Query version sync history with pagination |
-| `POST` | `/api/version-sync/revert` | Revert a previous version sync |
-
-### Query Parameters
-
-**`GET /api/stacks`** and **`GET /api/stacks/:name`** accept:
-- `?endpoint=hostname:port` — target a specific remote agent
-
-**`GET /api/version-sync/scan`** accepts:
-- `?stackName=mystack` — scan a specific stack (omit to scan all)
-- `?endpoint=hostname:port` — target a specific remote agent
-
-**`POST /api/version-sync/sync`** accepts JSON body:
-- `stackName` (string, required) — stack to sync
-- `service` (string, required) — service name within the stack
-- `newImage` (string, required) — image tag to write into the compose file
-
-**`POST /api/version-sync/sync-all`** accepts JSON body:
-- `stackName` (string, required) — stack to sync all mismatches for
-
-**`GET /api/version-sync/history`** accepts:
-- `?page=1&limit=20` — pagination
-- `?stackName=mystack` — filter by stack name
-- `?service=myservice` — filter by service name
-
-**`POST /api/version-sync/revert`** accepts JSON body:
-- `stackName` (string, required) — stack containing the service to revert
-- `service` (string, required) — service to revert to its previous image
-
-### Example
-
-```bash
-# List all stacks
-curl -H "X-API-Key: your-key" http://localhost:5001/api/stacks
-
-# Scan all stacks for compose/running image mismatches
-curl -H "X-API-Key: your-key" http://localhost:5001/api/version-sync/scan
-
-# Scan a specific stack
-curl -H "X-API-Key: your-key" "http://localhost:5001/api/version-sync/scan?stackName=myapp"
-
-# Sync a service to its running image
-curl -X POST -H "X-API-Key: your-key" -H "Content-Type: application/json" \
-  -d '{"stackName":"myapp","service":"web","newImage":"nginx:1.27"}' \
-  http://localhost:5001/api/version-sync/sync
-
-# Revert a previous sync
-curl -X POST -H "X-API-Key: your-key" -H "Content-Type: application/json" \
-  -d '{"stackName":"myapp","service":"web"}' \
-  http://localhost:5001/api/version-sync/revert
-```
-
-### Agent Compatibility
-
-The API communicates with remote agents via Socket.IO. Agents running pre-1.6.0 versions are supported with graceful degradation:
-- Stack listing falls back to legacy call signatures
-- Unsupported agents are listed in the response so you know which nodes need upgrading
-
-**Compose Drift Check requires v1.7.0 on all instances.** The master Dockge and every agent must run v1.7.0 or later for Compose Drift Check to work. The scan and sync commands are registered as new socket events (`scanVersionSync`, `syncVersion`, `syncAllVersions`, `revertVersionSync`) — agents running older versions will not respond to these events. The global scan on the Home page (on phones: ☰ → Compose Drift Check, or the button beside the stack search) only contacts agents that are online; offline or pre-1.7.0 agents are skipped with a warning.
-
-**Save/Deploy port check (v2.3.1):** a web UI check (the REST API deploys without it). It runs on the agent that owns the stack (new socket event `checkPortConflicts`). An agent older than 2.3.1 does not answer it, so the save goes ahead after 5 seconds without a warning.
-
-**Agent credential encryption (v1.9.0):** Agent passwords are now encrypted at rest using AES-256-GCM. A one-time migration encrypts existing plaintext passwords on first startup. Remote agents do not need updating — the wire protocol is unchanged. However, rolling back the primary to a pre-1.9.0 version after migration will break agent authentication; back up the SQLite database before upgrading.
-
-## Version History
-
-<a id="release-notes"></a>
-
-### 2.4.2 (2026-10-31)
-
-A dependency security update, plus a narrower quickstart. The server's dependencies now audit clean, and Dockge itself works as before: update the image tag (see [How to Update](https://github.com/darthrater78/dockge#update)).
-
-**Changes**
-- The migration script installs 2.4.2 by default; it still offered 2.4.0
-- The quickstart `compose.yaml` mounts only Dockge's data folder and the stacks folder (`/opt/docker/stacks`), as upstream does. The wide `/opt/docker` mount with `DOCKGE_BIND_ROOTS` from the 2.4.0/2.4.1 quickstart is gone from the quickstart, the docs and the migration script. Existing installs are unchanged and nothing has to move; installs on the old quickstart can switch back with the new [`extra/narrow-bind-root.sh`](https://github.com/darthrater78/dockge#bind-roots)
-- New README section: [Differences from upstream](https://github.com/darthrater78/dockge#upstream-differences), including what to expect when switching back
-
-**Security**
-- body-parser 2.3.0 → 2.4.0 (High): a denial of service from trailing bytes after a compressed request body. The JSON parser runs before the API-key check, so it was reachable without a key
-- fast-uri 3.1.9, ip-address 10.7.5, qs 6.17.1 (Moderate)
-- glob 14.0.3 and minimatch 11.0.3 through `overrides`, for the Moderate advisories in sqlite3, redbean-node and the lint tools
-- Accepted: GHSA-83rm-6c8r-g728 (High) and GHSA-8rc2-428q-7ww3 (Low) in vue-i18n 10.0.8, and the 10.x line being out of support. Both advisories need `escapeParameter`, and the first also needs translations rendered with `v-html`; Dockge uses neither, and its translations are bundled with the app. Dockge stays on vue-i18n 10 until an advisory affects it
-
-### 2.4.1 (2026-10-22)
-
-A security update. The image now runs Node.js 22.23.4. Nothing else changes: update the image tag (see [How to Update](#update)).
-
-**Security**
-- Node.js 22.x → 22.23.4 in the base image, for the October 21, 2026 Node.js security release: CVE-2026-111497 (High, Brotli decoder out-of-bounds write allowing remote code execution), CVE-2026-105482 (High, `dns.resolve` name truncation), CVE-2026-105483 and CVE-2026-106069 (High, TLS hostname verification bypasses), plus six Medium/Low fixes. Dockge uses TLS when it connects to remote agents
-- Healthcheck binary rebuilt with Go 1.27.1 → 1.27.3: CVE-2026-111943 (High, `crypto/x509` certificate validation), CVE-2026-78667 and CVE-2026-97031 (High, denial of service in `net/http` and `crypto/tls`)
-- Build tools only, not in the image: follow-redirects 1.16.0 → 1.16.1 (GHSA-q3jh-wrc6-jgq8, GHSA-8r9p-f939-6h3c, High) and vite 6.4.3 → 6.4.5
-- Accepted until 2026-11-30: CVE-2026-78669 (High) in `golang.org/x/net` 0.58.0 inside the Docker Compose plugin, a denial of service from an HTTP/2 server flooding SETTINGS frames. No Compose release carries the fix (0.60.0) yet; the image scan re-checks it when the waiver expires
-
-### 2.4.0 (2026-10-08)
-
-Dockge can run as a regular user (`PUID`/`PGID`) and creates your stacks' bind-mount folders itself, so containers can write to them with no `chown` on the host. Installs without `PUID`/`PGID` keep running as root, as before.
-
-2.3.2 was never published; its security fixes are part of this release.
-
-**Added**
-- **Runs as a regular user.** With `PUID`/`PGID` set, the container starts as root only to take ownership of Dockge's own folders (`data/`, the stacks folder, each stack folder and its compose and `.env` files, and the `DOCKGE_BIND_ROOTS` folders themselves, never your apps' data), join the group that owns `docker.sock`, and switch to `PUID:PGID` with no capabilities. No `chown`, docker group lookup or `group_add` on the host
-- **Bind-mount folders without `chown`.** Before Deploy, Start, Restart, Update and the REST `up` actions, Dockge creates a stack's missing bind-mount folders, owned by its user (`0755`). It covers `./relative` paths, paths built from `${VARIABLES}` in `.env`/`global.env`, and absolute paths under `DOCKGE_BIND_ROOTS` or the stacks folder. Paths through a symlink, outside those roots or with unset variables are left to Docker. Folders it couldn't prepare are shown as a warning
-- **Save checks the file with docker compose first.** An invalid compose file is rejected with compose's own message and the saved file stays as it was, instead of being written and failing later on Deploy and on every status refresh
-- The quickstart asks which IP Dockge should listen on (your LAN IP is suggested; `all` listens everywhere), waits until Dockge answers and prints its address. It also creates `/opt/docker/stacks`, owned by you
-- `extra/migrate-to-puid.sh`: moves an existing install to `PUID`/`PGID` and the hardened settings. It reads the running container, shows the new compose file and a diff before changing anything, backs up, and prints an undo command. It refuses setups it can't rewrite safely. See [Upgrading to 2.4.0](#upgrade)
-- `DOCKGE_BIND_ROOTS`: comma-separated folders (mounted at the same path) where absolute bind-mount folders may be created
-- Permission problems (a stacks folder Dockge can't write, a bad `PUID`/`PGID`, `PUID` that doesn't match `user:`) are shown after login instead of only in the log, and permission errors on save name the folder and what to do
-
-**Changed**
-- Quickstart `compose.yaml`: `PUID=1000`/`PGID=1000`, `/opt/docker` mounted for stacks and bind folders, read-only container filesystem, `no-new-privileges`, all capabilities dropped except the five the start-up step needs
-- `.env` and `global.env` are written `0600` (owner only), including existing files the next time they are saved
-- App files in the image are owned by root, so the user Dockge runs as can't modify them; npm, npx and corepack are removed from the image (Dockge doesn't use them), and Debian security updates are applied at build time
-- `${VAR}` substitution in the compose preview now follows docker compose exactly (`$VAR`, `${VAR:-default}` on an empty value, `$$`), replacing `@inventage/envsubst`
-- With `PUID`/`PGID`, registry logins live in `data/docker-config`; an existing `/root/.docker` mount is copied there once
-
-**Fixed**
-- Stack names are checked where every stack path is built, so a name such as `../x` sent to Save, Deploy or the port check can no longer make Dockge look outside the stacks folder before the name is validated. The REST API also ignores an `endpoint` query parameter that isn't a single value. Both were found by the new CodeQL scan; a login or API key was needed
-- A missing or mistyped top-level `services:` (for example `ervices:`) was silently "repaired" by the editor, which appended `services: {}` and let the broken file be saved and deployed. It is now shown as an error, and Save/Deploy check the YAML that is in the editor at that moment
-- A stack whose compose file docker rejects logged a full stack trace every few seconds while its page or the stack list was open. It is now logged once per error, and again only when the error changes or the stack recovers
-- The status of a stack that isn't in Dockge's stacks folder (for example one started by another Dockge on the same host) failed with `ENOENT`
-- A stacks folder that couldn't be created or written stopped Dockge at start; it now starts and warns
-
-**Compatibility** (details: [Upgrading to 2.4.0](#upgrade))
-- No `PUID`/`PGID` and no `user:`: runs as root exactly as before. The one-line updater changes only the image tag, so updating doesn't switch an install to the new mode
-- **`PUID`/`PGID` already set: behaviour change.** Before 2.4.0 they only set the owner of stack files; now Dockge itself switches to that user (data and stack files are re-owned on start, registry logins are copied, and the web console is no longer a root shell). Remove both to keep running as root
-- `user: "<uid>:<gid>"` keeps working; Dockge can't change ownership in that mode, and now warns instead of failing a save when `PUID`/`PGID` differ from it
-
-**Security**
-- engine.io 6.6.9 → 6.6.11 (CVE-2026-102599, High): a client could open a session and then upgrade it to WebSocket with a different or missing `EIO` protocol version, and a crafted heartbeat then crashed the server process. No login was needed. Upgrades must now match the session's protocol version
-- fast-uri 3.1.6 → 3.1.8 (CVE-2026-84292 High, CVE-2026-84394 High, CVE-2026-86472 Medium): URI authority injection and host confusion
-- ip-address 10.5.0 → 10.7.2 (CVE-2026-101910, Medium): the NAT64 local-use range wasn't recognized, which could let a check for private addresses be bypassed
-- brace-expansion 2.1.4 → 2.1.7 (CVE-2026-102276 High, CVE-2026-102278 High, CVE-2026-102277 Medium): crafted brace patterns could exhaust the stack or CPU
-- Build tools only, not in the image: brace-expansion 1.1.21 (the same three CVEs) and joi 17.13.8 (GHSA-6h2x-m376-mqjq)
-- proxy-addr 2.0.7 → 2.0.8 (CVE-2026-90711, Critical); tsx 4.19 → 4.23 (its esbuild was built with a Go runtime carrying 22 Critical/High CVEs); vue 3.5.43 (GHSA-g2v6-rqmx-r4w6, High); sass 1.105 (build tool only)
-- Image scan (Trivy): no known vulnerabilities at any severity, down from 6 Critical and 41 High in the v2.3.1 image
-
-**CI and tooling**
-- Images are pushed by digest, scanned with Trivy on amd64, arm64 and armv7 (`trivy.yaml`), and only then tagged: a fixable Critical/High means no version tag is published. Reviewed exceptions go in `.trivyignore.yaml`, each with a reason and an expiry. The base-image workflow works the same way
-- Each released image carries signed build provenance (`gh attestation verify oci://ghcr.io/darthrater78/dockge:<version> --repo darthrater78/dockge`)
-- The release workflow creates the GitHub release from this Version History section; `-dev`/`-beta`/`-rc` tags become pre-releases
-- New checks: dependency review on pull requests (fails on a new High/Critical advisory) and CodeQL for the TypeScript
-- CI skips its build for docs-only changes but still reports a passing run, so a docs-only commit can be released
-- The Dockerfile pins its own base images by digest
-- ESLint 10 with a flat config (`eslint.config.mjs`), typescript-eslint 8, eslint-plugin-vue 10, unplugin-vue-components 32: `npm audit` reports 0 vulnerabilities, build tools included
-
-### 2.3.1 (2026-09-25)
-
-**Added**
-- Save and Deploy check the stack's host ports first. If another stack on the same agent publishes one (running or not), or a running container does (including stacks not managed by Dockge and plain `docker run` containers), a dialog lists each port and who uses it, with **Save anyway** / **Deploy anyway**. Agents older than 2.3.1 don't answer the check; after 5 seconds the save goes ahead as before
-
-**Fixed**
-- Port conflicts were missed when the port came from a variable: `${VAR}`, `${VAR:-default}` and `$VAR` are now filled in from `global.env` and the stack's `.env`, the same way docker compose does
-- Ports declared in `compose.override.yaml` were ignored
-- Port ranges (`8000-8010:8000-8010`) were compared as text, so an overlap with `8005` went unnoticed; ranges are now matched port by port, and a conflict inside a range is shown as that range
-- A port with no host side (`- "3000"`, which gets a random host port) no longer counts as a conflict
-- IPv6 host bindings (`[::1]:8080:80`) show the right host port
-
-### 2.3.0 (2026-09-25)
-
-**Changed**
-- Mobile layout redesigned around finding a stack, editing it and acting on it; the bottom navigation bar is gone
-  - Home is the stack list: search (name, agent or port), status filter chips with counts, one card per stack; with several agents, a collapsible section per agent (collapsed until opened or searched)
-  - Stack page: back / name / status bar with a ⋮ menu (Update, Compose Drift Check, Down, Delete), Overview / Compose / Logs tabs, and a bottom action bar (Start or Restart, Stop, Update, Edit; Deploy, Save, Discard while editing). Actions switch to the Logs tab to show their output
-  - Menu sheet (☰) for Stacks, Overview, Compose Drift Check, Console, Settings, Scan Stacks Folder and Logout
-  - Compose Drift Check button next to the search box; its results are cards (stack / service, compose vs running image, Sync) on phones and whenever the panel is too narrow for the table
-- Desktop: the stack list pane can be dragged wider or narrower (arrow keys on the handle; double-click resets); the width is remembered
-
-**Added**
-- Port conflict banner above the stack list naming each conflicting port and the stacks that publish it; "Port conflicts" filter on mobile
-- `v<x.y.z>-dev.<n>` tags may be released from a feature branch and publish `:dev` + the version tag; stable tags remain default-branch only
-- README: "What's new" section at the top with screenshots and GIFs of the mobile layout, desktop resizing and Compose Drift Check (`docs/images/`, kept out of the Docker image)
-- Compose quickstart (README and `compose.yaml`) pins the image to the release (`:2.3.0`) instead of `:latest`; "How to Update" explains both
-
-**Fixed**
-- A conflicting port past the third one was hidden behind the "+N" badge; conflicting ports now sort first and the badge turns red when it hides one
-- Duplicate host ports (e.g. `6881/tcp` and `6881/udp`) are shown once in the stack list
-- Desktop stack list shows as many port badges as fit the pane width (was a fixed three)
-- "Scan All" in Compose Drift Check timed out on hosts with more than a handful of containers: every stack re-ran `docker ps` plus two `docker inspect` calls per container. A scan now makes three docker calls in total
-
-### 2.2.0 (2026-09-23)
-
-**Added**
-- Expandable terminal: every terminal panel (stack logs, console, container shell) has a drag handle (mouse, touch or arrow keys) and a full-screen toggle (Esc to restore); each page remembers its height
-- Compact header on mobile; stack action buttons wrap into even rows on narrow screens
-- `DOCKGE_ALLOW_FRAMING=true` to allow embedding Dockge in dashboards (see "Embedding Dockge in a dashboard")
-
-**Fixed**
-- Terminals no longer hide their newest lines below the panel: xterm measured its cells before the JetBrains Mono web font loaded and never re-measured
-- The server-side pty now follows the panel size (it stayed at its initial size, so full-screen programs drew at the wrong size)
-- REST API stack actions (`start`/`stop`/`restart`/`update`/`down`) now apply `global.env`, the stack `.env` and `compose.override.yaml`, the same as the UI
-- The "expand" icon on the stack page was never registered and rendered blank
-- The update-available link pointed at v2.1.0 instead of the latest release
-- A failed Docker build in the release could be reported as success (`env2arg.js` ignored the exit code)
-
-**Security**
-- Anti-framing headers (`X-Frame-Options: SAMEORIGIN`, `frame-ancestors 'self'`), `nosniff`, `Referrer-Policy`; `X-Powered-By` removed
-- Release workflow: default-branch check also applies to manual runs, the tag must match `package.json`, and CI must have passed for the tagged commit
-- Terminal resize requests, API paging and `POST /api/agents` input are validated; first-run setup can no longer race into two admin accounts
-- Healthcheck built with Go 1.27.1 (was 1.21.4); base images pinned by digest and watched by Dependabot
-- Security reports now go to this fork's private vulnerability reporting
-- `@xterm/xterm` pinned to stable 6.0.0 (was the floating `beta` tag)
-- `.claude/` and `.github/` excluded from the Docker build context (the image was shipping this repo's internal gate-state file)
-
-**CI**
-- Duplicate "CI Dev" workflow merged into CI; added actionlint workflow for workflow files
-
-
-### 1.9.2
-
-**Changed**
-- Docker image references migrated from upstream `louislam/dockge` to fork GHCR registry `ghcr.io/darthrater78/dockge`
-- Error reporting URL updated to fork repository
-- New `docker-base.yml` workflow for building base and healthcheck images independently
-
-**Security**
-- Bumped `mysql2` ~3.12.0 → ~3.23.1 (2 CVEs fixed)
-- Bumped `vite` ~5.4.15 → ~6.4.3 (3 CVEs fixed + transitive clears)
-- Removed unused `@actions/github` devDependency (12 transitive undici vulnerabilities cleared)
-- Reduced Dependabot alerts from 32 → 14
-
-**Fixed**
-- `package.json` indentation for `@codemirror/lang-python` entry
-- Removed duplicate `build:docker-ghcr` script
-
-### 1.9.1
-
-**Restored**
-- Update button — pull images and restart stack via compose (accidentally removed in 1.8.0 alongside the skopeo-based image update detection)
-- `POST /api/stacks/:name/update` API endpoint
-
-**Fixed**
-- About page release link now points to the fork repository
-
-### 1.9.0
-
-**Added**
-- Two-Factor Authentication (TOTP) — full backend implementation for setup, verification, enable/disable flows that were previously non-functional
-- `.env` file persistence — stack save now writes the `.env` file when the user provides environment content
-- Agent credential encryption — passwords stored at rest are encrypted with AES-256-GCM, keyed from the JWT secret
-- One-time database migration to encrypt existing plaintext agent passwords
-
-**Fixed**
-- `callbackError` now correctly distinguishes `ValidationError` from generic `Error` (subclass check order was inverted)
-- Removed stray `console.log` in `getComposeOptions`
-- SSL passphrase no longer logged in debug config output
-
-**Security**
-- Interactive terminal shell restricted to allowlist (`bash`, `sh`, `ash`, `zsh`)
-- Socket handler `updateAgent` params validated as `unknown` before use
-- Removed dead `needRehashPassword` function
-
-**Known issue**
-- `UPTIME_KUMA_WS_ORIGIN_CHECK=bypass` disables WebSocket origin validation entirely — if you use this env var for reverse proxy compatibility, be aware it removes CSRF protection. A safer allowlist-based alternative is planned for a future release.
-
-### 1.8.2
-
-Security patch — updated production dependencies to fix known vulnerabilities:
-
-- `ws` 8.17.1 → 8.21.3 (HIGH) — memory disclosure; memory-exhaustion DoS from tiny fragments
-- `yaml` 2.3.4 → 2.9.0 (MODERATE) — stack overflow via deeply nested YAML collections
-- `express` 4.21.2 → 4.22.2 — body-parser DoS when an invalid limit silently disables size enforcement; path-to-regexp ReDoS via multiple route parameters; qs arrayLimit bypass allowing DoS via memory exhaustion
-
-### 1.8.1
-
-**Fixed**
-- Dark mode drift check panel — Bootstrap CSS custom properties were overriding inherited colors, making table text nearly invisible
-- Scan hanging forever when an agent is offline — added 30s per-agent timeout
-
-**Changed**
-- Moved "Sync All" button to top of drift check panel, disabled until scan completes
-
-### 1.8.0
-
-**Removed**
-- Image update detection feature (skopeo-based registry digest comparison)
-- Auto-update scheduler (cron-based), per-stack auto-update toggle, and "Update All" button
-- `skopeo` from Docker image dependencies
-- All update-related API endpoints (`/api/stacks/:name/check-updates`, `/api/update-all`, `/api/scheduler`, `/api/update-history`); the basic `/api/stacks/:name/update` endpoint was restored in v1.9.1
-- Settings UI for update defaults and scheduler configuration
-
-**Changed**
-- Renamed "Version Sync" to "Compose Drift Check" across the UI
-- Replaced "Update All" sidebar button with "Compose Drift Check" link
-- Simplified Settings page to API key management only
-
-**Fixed**
-- Dark mode styling for drift check panel (table text visibility, code element contrast)
-
-### 1.7.1
-- Global Version Sync — Scan All button on the Home page detects image tag drift across every stack on every connected agent in one click
-- Per-row Sync buttons and Sync All to update compose files to match running containers
-- Version Sync API endpoint documentation and examples added to README
-- Agent compatibility requirements documented (all instances need v1.7.0+)
-
-### 1.7.0
-- Compose Version Sync: detect and fix image tag drift between running containers and compose files
-- Scan for mismatches caused by external update tools (WUD, Watchtower)
-- One-click sync to update compose files, preserving YAML comments
-- Sync history with revert capability
-- REST API endpoints at `/api/version-sync/`
-- Multi-host support via Dockge agent socket handlers
-
-### 1.6.3
-- Fixed `GET /api/stacks` returning empty `services` — container state, status, health, and image info are now included per stack
-- Enables HA integration container sensors to display per-container running state
-
-### 1.6.2
-- Added `POST /api/stacks/:name/down` endpoint — stop and remove containers (make stack inactive)
-- Completes the stack lifecycle API: start, stop, restart, down
-
-### 1.6.1
-- Added Settings UI for update defaults (prune toggles), auto-update scheduler (enable/cron), and API key management
-- Added per-stack auto-update toggle in the Compose view
-- Added `setApiKey` socket handler for setting API keys from the UI
-- Fixed misleading API key storage description in settings
-
-### 1.6.0
-
-**REST API**
-- 13 endpoints for managing stacks programmatically
-- Static API key authentication via `X-API-Key` header
-- Stack name validation prevents path traversal
-- Update history tracking with pagination and filtering
-
-**Auto-Update Scheduler**
-- Cron-based scheduled updates with per-stack opt-in
-- Configurable image pruning after updates
-- Self-update detection via sidecar container
-- Image update detection using skopeo
-
-**Agent Backward Compatibility**
-- Version-gated degradation for pre-1.6.0 agents
-- Mixed-version deployments work without breaking satellite nodes
-
-**Infrastructure**
-- Added skopeo to Docker image
-- Knex migration for `stack_setting` and `update_history` tables
-
-### 1.5.3
-
-Security hardening:
-- **Path traversal fix** — stack names are now validated in `Stack.getStack()` before any filesystem or Docker operation, preventing directory escape via crafted names
-- **JWT expiry** — tokens now expire after 30 days (previously never expired)
-- **Password model fix** — `resetPassword` no longer leaves the plaintext password on the user instance after updating
-- **XSS fix** — compose `x-dockge.urls` only renders `http:`/`https:` links; `javascript:` and other dangerous protocols are dropped
-- **Nightly workflow fix** — retargeted to `ghcr.io/darthrater78/dockge`, uses `GITHUB_TOKEN` instead of a custom PAT
-
-### 1.5.2
-- Fixed: adding a new Dockge Agent failed with `SQLITE_ERROR: table agent has no column named name` on any pre-existing install. The original `agent` table migration was edited in place to add a `name` column instead of shipping a follow-up migration, so databases that had already applied the old migration never picked up the column. A new idempotent migration backfills it.
-
-### 1.5.1
-
-**Fixes**
-- Fixed Update All button crash (undefined `sortedStackList`/`processing`)
-- Fixed post-setup login callback swallowed by missing `captchaToken` argument
-- Fixed potential crash on malformed login payload when Turnstile is enabled
-- Fixed Turnstile script load failure permanently blocking login with no fallback
-- Fixed duplicate Turnstile widgets on repeated Login component mounts
-- Fixed broken i18n lookup on the stack update toast message
-
-**Chores**
-- Replaced `console.*` logging in Turnstile verification with the project's log module
-- Documented Compose Override, Turnstile CAPTCHA, and Update All features in README, including `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` env vars
-
-## Screenshots
-
-![](https://github.com/louislam/dockge/assets/1336778/e7ff0222-af2e-405c-b533-4eab04791b40)
-
-
-![](https://github.com/louislam/dockge/assets/1336778/7139e88c-77ed-4d45-96e3-00b66d36d871)
-
-![](https://github.com/louislam/dockge/assets/1336778/f019944c-0e87-405b-a1b8-625b35de1eeb)
-
-![](https://github.com/louislam/dockge/assets/1336778/a4478d23-b1c4-4991-8768-1a7cad3472e3)
-
-
-## Motivations
-
-*From Louis Lam's original README:*
-
-- I have been using Portainer for some time, but for the stack management, I am sometimes not satisfied with it. For example, sometimes when I try to deploy a stack, the loading icon keeps spinning for a few minutes without progress. And sometimes error messages are not clear.
-- Try to develop with ES Module + TypeScript
-
-If you love this project, please consider giving it a ⭐.
-
-
-## 🗣️ Community and Contribution
-
-### Bug Report
-https://github.com/darthrater78/dockge/issues
-
-### Ask for Help
-https://github.com/darthrater78/dockge/issues
-
-### Security Issues
-Please report privately: https://github.com/darthrater78/dockge/security/advisories/new
-
-How Dockge handles security (login, API key, stored data, releases): [Security architecture](SECURITY.md#security-architecture)
-
-### Translation
-If you want to translate Dockge into your language, please read [Translation Guide](https://github.com/darthrater78/dockge/blob/master/frontend/src/lang/README.md)
-
-### Create a Pull Request
-
-Be sure to read the [guide](https://github.com/darthrater78/dockge/blob/master/CONTRIBUTING.md), as we don't accept all types of pull requests and don't want to waste your time.
+- **Bugs and questions:** [GitHub issues](https://github.com/darthrater78/dockge/issues)
+- **Security issues:** please report privately: [new advisory](https://github.com/darthrater78/dockge/security/advisories/new)
+- **Translations:** [translation guide](frontend/src/lang/README.md)
+- **Pull requests:** read the [contributing guide](CONTRIBUTING.md) first, as not every kind of PR is accepted
 
 ## FAQ
 
-#### "Dockge"?
+**"Dockge"?** A word Louis coined: it should sound like "Dodge", though "Dockage" is fine too. The idea came from Twitch emotes like `sadge` and `bedge`.
 
-"Dockge" is a coinage word which is created by myself. I originally hoped it sounds like `Dodge`, but apparently many people called it `Dockage`, it is also acceptable.
+**Can I manage a single container without `compose.yaml`?** No: Dockge uses `compose.yaml` for everything. For single containers, use Portainer or the Docker CLI.
 
-The naming idea came from Twitch emotes like `sadge`, `bedge` or `wokege`. They all end in `-ge`.
+**Can I manage existing stacks?** Yes. Stop the stack, move its compose file to `/opt/docker/stacks/<stackName>/compose.yaml` (your `DOCKGE_STACKS_DIR`), then choose **Scan Stacks Folder** in Dockge's top-right menu.
 
-#### Can I manage a single container without `compose.yaml`?
+**Is Dockge a Portainer replacement?** If you manage everything with docker compose, it can be. It doesn't manage networks or single containers. You can run both side by side.
 
-The main objective of Dockge is to try to use the docker `compose.yaml` for everything. If you want to manage a single container, you can just use Portainer or Docker CLI.
-
-#### Can I manage existing stacks?
-
-Yes, you can. However, you need to move your compose file into the stacks directory:
-
-1. Stop your stack
-2. Move your compose file into `/opt/docker/stacks/<stackName>/compose.yaml` (your `DOCKGE_STACKS_DIR`)
-3. In Dockge, click the " Scan Stacks Folder" button in the top-right corner's dropdown menu
-4. Now you should see your stack in the list
-
-#### Is Dockge a Portainer replacement?
-
-Yes or no. Portainer provides a lot of Docker features. While Dockge is currently only focusing on docker-compose with a better user interface and better user experience.
-
-If you want to manage your container with docker-compose only, the answer may be yes.
-
-If you still need to manage something like docker networks, single containers, the answer may be no.
-
-#### Can I install both Dockge and Portainer?
-
-Yes, you can.
-
-## Others
-
-Dockge is built on top of [Compose V2](https://docs.docker.com/compose/migrate/). `compose.yaml`  also known as `docker-compose.yml`.
+Dockge is built on [Compose V2](https://docs.docker.com/compose/migrate/) (`compose.yaml`, also known as `docker-compose.yml`). *Motivation, from Louis's original README:* Portainer's stack deployment sometimes spun for minutes without progress or gave unclear errors.

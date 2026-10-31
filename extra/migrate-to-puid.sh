@@ -46,9 +46,9 @@ PROJECT=$(label "$CID" com.docker.compose.project)
 SERVICE=$(label "$CID" com.docker.compose.service)
 OLD_IMAGE=$(d inspect -f '{{.Config.Image}}' "$CID")
 if [ -z "$F" ] || [ -z "$SERVICE" ]; then
-    die "This Dockge wasn't started with docker compose; see the README's upgrade steps."
+    die "This Dockge wasn't started with docker compose; see docs/install.md, 'Moving to the recommended setup'."
 fi
-case "$F" in *,*) die "Started from several compose files ($F); see the README's upgrade steps." ;; esac
+case "$F" in *,*) die "Started from several compose files ($F); see docs/install.md, 'Moving to the recommended setup'." ;; esac
 [ -f "$F" ] || die "Compose file $F isn't on this machine. Run this on the Docker host."
 note "Found Dockge: service '$SERVICE' in $F (image $OLD_IMAGE)"
 
@@ -74,7 +74,7 @@ case "$network" in "${PROJECT}_default" | default | bridge) ;; *) problems+=("ne
 if [ "${#problems[@]}" -gt 0 ]; then
     printf '❌ Not migrating automatically, because the compose file has:\n' >&2
     printf '   - %s\n' "${problems[@]}" >&2
-    die "Follow the README's 'Moving to the recommended setup' steps instead; nothing was changed."
+    die "Follow 'Moving to the recommended setup' in docs/install.md instead; nothing was changed."
 fi
 
 # ---- 3. Read the current settings from the container ---------------------------------------
