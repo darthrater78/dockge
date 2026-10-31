@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Move a running Dockge install to the 2.4.0 runtime model: PUID/PGID instead of root or `user:`,
-# a bind-root mount so Dockge can create bind-mount folders, and the hardened settings.
+# an optional (opt-in) bind-root mount so Dockge can create bind-mount folders, and the hardened
+# settings.
 #
 #   bash migrate-to-puid.sh [version]        (default version: 2.4.0)
 #
@@ -123,15 +124,12 @@ PGID=$(ask "Group id (PGID; your own group, not the docker group)" "$my_group")
 case "$PUID:$PGID" in *[!0-9:]* | :* | *:) die "PUID and PGID must be numbers." ;; esac
 [ "$PUID" != 0 ] || die "PUID 0 is root; nothing to migrate."
 
-# Suggest the stacks folder's parent (/opt/docker for /opt/docker/stacks), unless that is a system
-# folder Dockge would then take ownership of; then suggest the stacks folder itself
-default_root=$(dirname "$STACKS_DIR")
-case "$default_root" in
-    / | /opt | /srv | /home | /mnt | /var | /usr | /etc) default_root=$STACKS_DIR ;;
-esac
-echo "Dockge creates missing bind-mount folders under one folder that holds your stacks and your apps' data,"
-echo "mounted at the same path. Enter it, or 'none' to only create folders inside each stack."
-BIND_ROOT=$(ask "Bind-root folder" "$default_root")
+# The wider bind-root mount is opt-in: by default Dockge keeps seeing only the stacks folder
+echo "Optional: Dockge can create missing absolute bind-mount folders (such as /opt/docker/<app>) owned by"
+echo "PUID/PGID, if it can see the folder that holds them. That gives Dockge read and write access to every"
+echo "app's data in that folder. Press Enter for 'none' (recommended: only folders inside each stack are"
+echo "created, as before), or enter that folder to opt in."
+BIND_ROOT=$(ask "Bind-root folder" "none")
 case "$BIND_ROOT" in
     none) BIND_ROOT= ;;
     /) die "Not / : choose the folder that holds your stacks and app data." ;;
