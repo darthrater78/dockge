@@ -14,7 +14,7 @@ A fancy, easy-to-use and reactive self-hosted docker compose.yaml stack-oriented
 
 [![GitHub Repo stars](https://img.shields.io/github/stars/darthrater78/dockge?logo=github&style=flat)](https://github.com/darthrater78/dockge) [![GitHub release (latest by date)](https://img.shields.io/github/v/release/darthrater78/dockge?label=release)](https://github.com/darthrater78/dockge/releases) [![GitHub last commit (branch)](https://img.shields.io/github/last-commit/darthrater78/dockge/master?logo=github)](https://github.com/darthrater78/dockge/commits/master/)
 
-**Jump to:** [🔧 Install](#install) · [⬆️ Upgrading to 2.4.0](#upgrade) · [🔄 Update](#update) · [🔒 Running as a regular user](#runtime) · [📋 Release notes](#release-notes)
+**Jump to:** [🔧 Install](#install) · [↔️ Differences from upstream](#upstream-differences) · [⬆️ Upgrading to 2.4.0](#upgrade) · [🔄 Update](#update) · [🔒 Running as a regular user](#runtime) · [📋 Release notes](#release-notes)
 
 ## 🆕 What's new in this fork
 
@@ -22,7 +22,7 @@ Built on Louis's original design, 2.3.0 adds a redesigned phone layout, a resiza
 
 **2.3.1** catches the port conflicts 2.3.0 could miss (ports set through `.env` variables, `compose.override.yaml`, port ranges) and checks your ports when you Save or Deploy a stack. [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.3.1)
 
-**2.4.0** runs Dockge as a regular user: set `PUID`/`PGID` and it fixes the ownership of its own folders, joins the docker.sock group and drops root by itself. It also creates your stacks' bind-mount folders before they start, so containers can write to them without a `chown`. Installs without `PUID`/`PGID` keep running as root, as before. It also includes the security fixes planned for 2.3.2. See [Running as a regular user](#runtime). [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.0-dev.2)
+**2.4.0** runs Dockge as a regular user: set `PUID`/`PGID` and it fixes the ownership of its own folders, joins the docker.sock group and drops root by itself. It also creates your stacks' missing bind-mount folders inside the stack before they start, so containers can write to them without a `chown` (folders elsewhere are [opt-in](#bind-roots)). Installs without `PUID`/`PGID` keep running as root, as before. It also includes the security fixes planned for 2.3.2. See [Running as a regular user](#runtime). [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.0-dev.2)
 
 **2.4.1** is a security update: the image runs Node.js 22.23.4, which fixes the [October 2026 Node.js security release](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases) (a Brotli decoder remote-code-execution bug and TLS hostname-check bypasses). Nothing else changes; update the image tag. [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.1)
 
@@ -104,6 +104,25 @@ Compose Drift Check (added in this fork in 1.7.0) finds services whose `compose.
 <img src="https://github.com/louislam/dockge/assets/1336778/26a583e1-ecb1-4a8d-aedf-76157d714ad7" width="900" alt="" />
 
 View Video: https://youtu.be/AWAlOQeNpgU?t=48
+
+<a id="upstream-differences"></a>
+
+## ↔️ Differences from upstream
+
+What this fork changes about an install, compared with [louislam/dockge](https://github.com/louislam/dockge). Most of the fork is new code added on top (about 6,900 lines across the backend, frontend and shared code, against fewer than 300 changed or removed); the features above add screens and options without changing how an existing setup works. These are the exceptions:
+
+| | Upstream | This fork |
+|---|---|---|
+| **Image** | `louislam/dockge:1` | `ghcr.io/darthrater78/dockge:<version>`, pinned to a release |
+| **Stacks folder in the quickstart** | `/opt/stacks` | `/opt/docker/stacks`. Both are just `DOCKGE_STACKS_DIR`: keep yours, nothing has to move |
+| **What Dockge mounts** | `docker.sock`, its data folder, the stacks folder | The same by default. A wider mount so Dockge can create bind folders for you is [opt-in](#bind-roots) |
+| **User Dockge runs as** | root | root, unless you set `PUID`/`PGID`; then it [drops to that user](#runtime) after fixing ownership of its own folders and stack files (never your apps' data) |
+| **Container hardening** | none | The quickstart adds a read-only filesystem, `no-new-privileges` and dropped capabilities. Only applies if you copy them into your compose file |
+| **Saving a stack** | Writes the file | Checks it with `docker compose` first; `.env` and `global.env` are saved readable by their owner only (`0600`) |
+| **Before a stack starts** | Docker creates missing bind folders as root | Dockge creates missing `./relative` folders inside the stack, owned by its user |
+| **Database** | | Three migrations: an agent name column, a version-sync history table, and remote agent passwords encrypted at rest |
+
+**Going back to upstream:** your stacks and compose files work unchanged with upstream Dockge. The database mostly does too, except remote agents: their passwords are encrypted by this fork, and upstream can't read them, so re-enter each agent's password after switching (or remove and re-add the agents). Upstream logs "Database migration failed, you may be downgrading Dockge" on start because of the extra migrations; that warning is harmless. Back up the data folder before switching either way.
 
 ---
 
@@ -227,7 +246,7 @@ Dockge itself is Louis Lam's project. This fork (by way of [Chris Cooper's fork]
 - 🚦 (2.3.0 🆕) Port conflict banner — every host port published by more than one running stack, and which stacks they are
 - 🛑 (2.3.1 🆕) Port check on Save and Deploy — warns when a host port is already used by another stack (running or not) or a running container, including ports set through `.env` variables, `compose.override.yaml` and port ranges
 - 👤 (2.4.0 🆕) Runs as a regular user — set `PUID`/`PGID` and Dockge fixes the ownership of its own folders, then drops root ([details](#runtime))
-- 📁 (2.4.0 🆕) Creates a stack's missing bind-mount folders before it starts, owned by Dockge's user, so containers can write to them without a `chown`
+- 📁 (2.4.0 🆕) Creates a stack's missing bind-mount folders inside the stack before it starts, owned by Dockge's user, so containers can write to them without a `chown` (folders outside the stacks folder are [opt-in](#bind-roots))
 - ✅ (2.4.0 🆕) Save checks the compose file with `docker compose` first and keeps the old file if the new one is invalid
 - 🛡️ (2.4.1) Security update: Node.js 22.23.4 and a rebuilt healthcheck ([release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.1))
 - 🧑‍💼 Manage your `compose.yaml` files
@@ -695,7 +714,11 @@ The API communicates with remote agents via Socket.IO. Agents running pre-1.6.0 
 
 ### 2.4.2 (unreleased)
 
-A dependency security update. The server's dependencies now audit clean; nothing changes in how Dockge works. Dev builds of this version are tagged `2.4.2-dev.<n>` and published as `ghcr.io/darthrater78/dockge:2.4.2-dev.<n>` for testing.
+A dependency security update, plus a narrower quickstart. The server's dependencies now audit clean, and Dockge itself works as before. Dev builds of this version are tagged `2.4.2-dev.<n>` and published as `ghcr.io/darthrater78/dockge:2.4.2-dev.<n>` for testing.
+
+**Changes**
+- The quickstart `compose.yaml` mounts only Dockge's data folder and the stacks folder (`/opt/docker/stacks`), as upstream does. Mounting `/opt/docker` with `DOCKGE_BIND_ROOTS` is now [opt-in](#bind-roots), and the migration script defaults to `none`. Existing installs are unchanged; nothing has to move
+- New README section: [Differences from upstream](#upstream-differences), including what to expect when switching back
 
 **Security**
 - body-parser 2.3.0 → 2.4.0 (High): a denial of service from trailing bytes after a compressed request body. The JSON parser runs before the API-key check, so it was reachable without a key
