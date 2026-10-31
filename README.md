@@ -26,6 +26,8 @@ Built on Louis's original design, 2.3.0 adds a redesigned phone layout, a resiza
 
 **2.4.1** is a security update: the image runs Node.js 22.23.4, which fixes the [October 2026 Node.js security release](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases) (a Brotli decoder remote-code-execution bug and TLS hostname-check bypasses). Nothing else changes; update the image tag. [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.1)
 
+**2.4.2** fixes the server's dependency advisories (body-parser, a High denial of service) and goes back to upstream's mount layout: the quickstart mounts only Dockge's data folder and the stacks folder. Installs made with the 2.4.0 or 2.4.1 quickstart can switch back [without moving any data](#bind-roots); see also [Differences from upstream](#upstream-differences). [Release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.2)
+
 <a id="mobile"></a>
 
 ### 📱 Mobile
@@ -157,6 +159,7 @@ Starting from [Chris Cooper's fork](https://github.com/cmcooper1980/dockge) of [
 | **v2.3.1** | Port conflicts you couldn't see | Ports written as `${VAR}` are read with the values from the stack's `.env` and `global.env`, ports in `compose.override.yaml` count, and port ranges are matched port by port; Save and Deploy now warn when a host port is already used by another stack (running or not) or by a running container outside any stack |
 | **v2.4.0** | Runs as a regular user, bind folders without `chown` | Entrypoint drops root to `PUID`/`PGID` after fixing ownership of Dockge's own folders and joining the docker.sock group (old installs unchanged); missing bind-mount folders created before `up` (relative, `${VAR}`, and under `DOCKGE_BIND_ROOTS`); hardened quickstart (read-only filesystem, `no-new-privileges`, capabilities dropped); `.env` saved `0600`; Trivy scan gates every image push and the release workflow creates the GitHub release; dependency CVE fixes folded in from the unshipped 2.3.2 |
 | **v2.4.1** | Node.js security update | Base image moved to Node.js 22.23.4 for the October 2026 Node.js security release (Brotli decoder RCE, TLS hostname bypasses); healthcheck rebuilt with Go 1.27.3; follow-redirects and vite dev-dependency fixes |
+| **v2.4.2** | Dependency fixes, upstream mount layout | body-parser 2.4.0 (High DoS) and Moderate fixes; quickstart and docs mount only the data and stacks folders, as upstream; `extra/narrow-bind-root.sh` for installs on the old quickstart; "Differences from upstream" section; shellcheck in CI |
 
 ### How it worked
 
@@ -249,6 +252,7 @@ Dockge itself is Louis Lam's project. This fork (by way of [Chris Cooper's fork]
 - 📁 (2.4.0 🆕) Creates a stack's missing bind-mount folders inside the stack before it starts, owned by Dockge's user, so containers can write to them without a `chown` (folders outside the stacks folder are left to Docker, as upstream)
 - ✅ (2.4.0 🆕) Save checks the compose file with `docker compose` first and keeps the old file if the new one is invalid
 - 🛡️ (2.4.1) Security update: Node.js 22.23.4 and a rebuilt healthcheck ([release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.1))
+- 🛡️ (2.4.2) Dependency security fixes, and Dockge mounts only its data and stacks folders, as upstream ([release notes](https://github.com/darthrater78/dockge/releases/tag/v2.4.2))
 - 🧑‍💼 Manage your `compose.yaml` files
   - Create/Edit/Start/Stop/Restart/Update/Delete
 - ⌨️ Interactive Editor for `compose.yaml`
@@ -333,7 +337,7 @@ To use a different stacks directory or port, generate a compose file with the [i
 curl "https://dockge.kuma.pet/compose.yaml?port=5001&stacksPath=/opt/docker/stacks" --output compose.yaml
 ```
 
-Then set its `image:` to `ghcr.io/darthrater78/dockge:2.4.1` (the generator uses the upstream image). To run Dockge as a regular user instead of root, add under `environment:` (both are needed):
+Then set its `image:` to `ghcr.io/darthrater78/dockge:2.4.2` (the generator uses the upstream image). To run Dockge as a regular user instead of root, add under `environment:` (both are needed):
 
 ```yaml
       - PUID=1000
@@ -347,7 +351,7 @@ Save this as `/opt/docker/dockge/compose.yaml` (create the folders first: `sudo 
 ```yaml
 services:
   dockge:
-    image: ghcr.io/darthrater78/dockge:2.4.1
+    image: ghcr.io/darthrater78/dockge:2.4.2
     restart: unless-stopped
     ports:
       - 5001:5001
@@ -527,14 +531,14 @@ Back up first (`docker compose stop dockge`, then copy `compose.yaml` and the da
 
 ## How to Update
 
-The compose file pins a release (`ghcr.io/darthrater78/dockge:2.4.1`) so an update never happens by surprise.
+The compose file pins a release (`ghcr.io/darthrater78/dockge:2.4.2`) so an update never happens by surprise.
 
 ### One-line update
 
 Dockge can't update itself (restarting its own container would cut the update off halfway), so run this on the Docker host. Set `V` to the [latest release](https://github.com/darthrater78/dockge/releases/latest):
 
 ```bash
-V=2.4.1; F=/opt/docker/dockge/compose.yaml
+V=2.4.2; F=/opt/docker/dockge/compose.yaml
 S=; docker ps >/dev/null 2>&1 || S=sudo; $S docker pull ghcr.io/darthrater78/dockge:$V \
   && $S sed -i.bak -E "s#(ghcr\.io/darthrater78/dockge:)[^[:space:]]+#\1$V#" "$F" \
   && $S docker compose -f "$F" up -d dockge && $S docker compose -f "$F" ps dockge \
@@ -705,13 +709,14 @@ The API communicates with remote agents via Socket.IO. Agents running pre-1.6.0 
 
 <a id="release-notes"></a>
 
-### 2.4.2 (unreleased)
+### 2.4.2 (2026-10-31)
 
-A dependency security update, plus a narrower quickstart. The server's dependencies now audit clean, and Dockge itself works as before. Dev builds of this version are tagged `2.4.2-dev.<n>` and published as `ghcr.io/darthrater78/dockge:2.4.2-dev.<n>` for testing.
+A dependency security update, plus a narrower quickstart. The server's dependencies now audit clean, and Dockge itself works as before: update the image tag (see [How to Update](https://github.com/darthrater78/dockge#update)).
 
 **Changes**
-- The quickstart `compose.yaml` mounts only Dockge's data folder and the stacks folder (`/opt/docker/stacks`), as upstream does. The wide `/opt/docker` mount with `DOCKGE_BIND_ROOTS` from the 2.4.0/2.4.1 quickstart is gone from the quickstart, the docs and the migration script. Existing installs are unchanged and nothing has to move; installs on the old quickstart can switch back with the new [`extra/narrow-bind-root.sh`](#bind-roots)
-- New README section: [Differences from upstream](#upstream-differences), including what to expect when switching back
+- The migration script installs 2.4.2 by default; it still offered 2.4.0
+- The quickstart `compose.yaml` mounts only Dockge's data folder and the stacks folder (`/opt/docker/stacks`), as upstream does. The wide `/opt/docker` mount with `DOCKGE_BIND_ROOTS` from the 2.4.0/2.4.1 quickstart is gone from the quickstart, the docs and the migration script. Existing installs are unchanged and nothing has to move; installs on the old quickstart can switch back with the new [`extra/narrow-bind-root.sh`](https://github.com/darthrater78/dockge#bind-roots)
+- New README section: [Differences from upstream](https://github.com/darthrater78/dockge#upstream-differences), including what to expect when switching back
 
 **Security**
 - body-parser 2.3.0 → 2.4.0 (High): a denial of service from trailing bytes after a compressed request body. The JSON parser runs before the API-key check, so it was reachable without a key
