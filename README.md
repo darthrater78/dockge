@@ -14,7 +14,7 @@ A fancy, easy-to-use and reactive self-hosted docker compose.yaml stack-oriented
 
 [![GitHub Repo stars](https://img.shields.io/github/stars/darthrater78/dockge?logo=github&style=flat)](https://github.com/darthrater78/dockge) [![GitHub release (latest by date)](https://img.shields.io/github/v/release/darthrater78/dockge?label=release)](https://github.com/darthrater78/dockge/releases) [![GitHub last commit (branch)](https://img.shields.io/github/last-commit/darthrater78/dockge/master?logo=github)](https://github.com/darthrater78/dockge/commits/master/)
 
-**Jump to:** [🔧 Install](#install) · [⬆️ Upgrading to 2.4.0](#upgrade) · [🔄 Update](#update) · [🔒 Running as a regular user](#runtime) · [📋 Release notes](#release-notes)
+**Jump to:** [🔧 Install](#install) · [↔️ Differences from upstream](#upstream-differences) · [⬆️ Upgrading to 2.4.0](#upgrade) · [🔄 Update](#update) · [🔒 Running as a regular user](#runtime) · [📋 Release notes](#release-notes)
 
 ## 🆕 What's new in this fork
 
@@ -104,6 +104,25 @@ Compose Drift Check (added in this fork in 1.7.0) finds services whose `compose.
 <img src="https://github.com/louislam/dockge/assets/1336778/26a583e1-ecb1-4a8d-aedf-76157d714ad7" width="900" alt="" />
 
 View Video: https://youtu.be/AWAlOQeNpgU?t=48
+
+<a id="upstream-differences"></a>
+
+## ↔️ Differences from upstream
+
+What this fork changes about an install, compared with [louislam/dockge](https://github.com/louislam/dockge). Most of the fork is new code added on top (about 6,900 lines across the backend, frontend and shared code, against fewer than 300 changed or removed); the features above add screens and options without changing how an existing setup works. These are the exceptions:
+
+| | Upstream | This fork |
+|---|---|---|
+| **Image** | `louislam/dockge:1` | `ghcr.io/darthrater78/dockge:<version>`, pinned to a release |
+| **Stacks folder in the quickstart** | `/opt/stacks` | `/opt/docker/stacks`. Both are just `DOCKGE_STACKS_DIR`: keep yours, nothing has to move |
+| **What Dockge mounts** | `docker.sock`, its data folder, the stacks folder | The same by default. A wider mount so Dockge can create bind folders for you is [opt-in](#bind-roots) |
+| **User Dockge runs as** | root | root, unless you set `PUID`/`PGID`; then it [drops to that user](#runtime) after fixing ownership of its own folders and stack files (never your apps' data) |
+| **Container hardening** | none | The quickstart adds a read-only filesystem, `no-new-privileges` and dropped capabilities. Only applies if you copy them into your compose file |
+| **Saving a stack** | Writes the file | Checks it with `docker compose` first; `.env` and `global.env` are saved readable by their owner only (`0600`) |
+| **Before a stack starts** | Docker creates missing bind folders as root | Dockge creates missing `./relative` folders inside the stack, owned by its user |
+| **Database** | | Three migrations: an agent name column, a version-sync history table, and remote agent passwords encrypted at rest |
+
+**Going back to upstream:** your stacks and compose files work unchanged with upstream Dockge. The database mostly does too, except remote agents: their passwords are encrypted by this fork, and upstream can't read them, so re-enter each agent's password after switching (or remove and re-add the agents). Upstream logs "Database migration failed, you may be downgrading Dockge" on start because of the extra migrations; that warning is harmless. Back up the data folder before switching either way.
 
 ---
 
