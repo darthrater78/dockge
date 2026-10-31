@@ -24,7 +24,7 @@ What follows describes how this fork handles security, so it can be checked agai
 - **Login.** One user account: bcrypt password hash; JWT session tokens valid 30 days, signed with a random secret generated on first start; optional TOTP 2FA and optional Cloudflare Turnstile CAPTCHA. Login attempts are limited to 20 a minute and 2FA attempts to 30 a minute, counted across all clients, not per client.
 - **REST API.** Off until an API key is generated in Settings or set with `DOCKGE_API_KEY`. Requests send it in `X-API-Key`; it is compared in constant time. Stack names are validated where every stack path is built.
 - **Web console.** The host shell console is off unless `DOCKGE_ENABLE_CONSOLE=true`.
-- **Process.** With `PUID`/`PGID` the container starts as root only to fix ownership of Dockge's own folders and join the docker.sock group, then runs as that user. App files in the image are root-owned. The quickstart adds a read-only root filesystem, `no-new-privileges` and drops all capabilities.
+- **Process.** With `PUID`/`PGID` the container starts as root only to fix ownership of Dockge's own folders and join the docker.sock group, then runs as that user. App files in the image are root-owned. The quickstart adds a read-only root filesystem, `no-new-privileges` and drops all capabilities. The quickstart mounts only Dockge's data folder and the stacks folder; a wider bind-root mount (`DOCKGE_BIND_ROOTS`), which gives Dockge access to the apps' data in that folder, is opt-in.
 - **Stored data** (`data/`, SQLite `dockge.db`, or MySQL/MariaDB when configured):
   - Password: bcrypt hash. JWT secret: plaintext in the database.
   - Remote agent passwords: AES-256-GCM. The key is the JWT secret, stored in the same database, so this protects a copy of the agent table on its own, not a copy of the whole database.
@@ -37,6 +37,7 @@ What follows describes how this fork handles security, so it can be checked agai
 
 ### Changes
 
+- 2026-10-31 (unreleased): the quickstart and the migration script no longer mount `/opt/docker` or set `DOCKGE_BIND_ROOTS` by default; Dockge sees only its data folder and the stacks folder, as upstream. The wider mount is opt-in, with its trade-off documented.
 - 2026-10-22 (v2.4.1): base image moved to Node.js 22.23.4 for the October 2026 Node.js security release (Brotli decoder RCE, TLS hostname bypasses).
 - 2026-10-22 (v2.4.1): healthcheck binary rebuilt with Go 1.27.3 (CVE-2026-111943, CVE-2026-78667, CVE-2026-97031).
 - 2026-10-22 (v2.4.1, risk accepted until 2.5.0): the API key and the session-signing secret are stored in plaintext in the database, and the agent-password key is that same secret. Accepted because `data/` is only readable on the Docker host; a fix (storing a hash of the API key, a separate key for agent passwords) is planned for 2.5.0.
