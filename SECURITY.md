@@ -37,6 +37,8 @@ What follows describes how this fork handles security, so it can be checked agai
 
 ### Changes
 
+- 2026-10-31 (unreleased): dependency fixes: body-parser 2.4.0 (High, denial of service from trailing bytes after a compressed body), fast-uri 3.1.9, ip-address 10.7.5, qs 6.17.1, and glob 14.0.3 / minimatch 11.0.3 through `overrides` (Moderate). Server dependencies audit clean.
+- 2026-10-31 (risk accepted): GHSA-83rm-6c8r-g728 (High) and GHSA-8rc2-428q-7ww3 (Low) in vue-i18n 10.0.8. Not exploitable here: Dockge doesn't enable `escapeParameter`, renders no translation with `v-html`, and has no `srcdoc` in its messages. The fix needs vue-i18n 11; revisit if any of those change.
 - 2026-10-31 (unreleased): the quickstart and the migration script no longer mount `/opt/docker` or set `DOCKGE_BIND_ROOTS` by default; Dockge sees only its data folder and the stacks folder, as upstream. The wider mount is opt-in, with its trade-off documented.
 - 2026-10-22 (v2.4.1): base image moved to Node.js 22.23.4 for the October 2026 Node.js security release (Brotli decoder RCE, TLS hostname bypasses).
 - 2026-10-22 (v2.4.1): healthcheck binary rebuilt with Go 1.27.3 (CVE-2026-111943, CVE-2026-78667, CVE-2026-97031).
