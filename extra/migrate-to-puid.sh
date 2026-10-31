@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Move a running Dockge install to the 2.4.0 runtime model: PUID/PGID instead of root or `user:`,
-# an optional (opt-in) bind-root mount so Dockge can create bind-mount folders, and the hardened
-# settings.
+# and the hardened settings. Dockge keeps mounting only its data folder and the stacks folder.
 #
-#   bash migrate-to-puid.sh [version]        (default version: 2.4.0)
+#   bash migrate-to-puid.sh [version]        (default version: 2.4.2)
 #
 # It reads the running container (docker inspect + its compose labels), asks only what it can't
 # know, shows the new compose.yaml and a diff, and changes nothing until you answer y. It refuses
@@ -11,7 +10,7 @@
 # Backup, then rollback: see the end of the run. Needs bash and docker (with the compose plugin).
 set -euo pipefail
 
-VERSION="${1:-2.4.0}"
+VERSION="${1:-2.4.2}"
 IMAGE="ghcr.io/darthrater78/dockge"
 
 S=
@@ -124,21 +123,6 @@ PGID=$(ask "Group id (PGID; your own group, not the docker group)" "$my_group")
 case "$PUID:$PGID" in *[!0-9:]* | :* | *:) die "PUID and PGID must be numbers." ;; esac
 [ "$PUID" != 0 ] || die "PUID 0 is root; nothing to migrate."
 
-# The wider bind-root mount is opt-in: by default Dockge keeps seeing only the stacks folder
-echo "Optional: Dockge can create missing absolute bind-mount folders (such as /opt/docker/<app>) owned by"
-echo "PUID/PGID, if it can see the folder that holds them. That gives Dockge read and write access to every"
-echo "app's data in that folder. Press Enter for 'none' (recommended: only folders inside each stack are"
-echo "created, as before), or enter that folder to opt in."
-BIND_ROOT=$(ask "Bind-root folder" "none")
-case "$BIND_ROOT" in
-    none) BIND_ROOT= ;;
-    /) die "Not / : choose the folder that holds your stacks and app data." ;;
-    /*) ;;
-    *) die "Use an absolute path, or 'none'." ;;
-esac
-case "$BIND_ROOT" in
-    /opt | /srv | /home | /mnt | /var | /usr | /etc) note "$BIND_ROOT is broad: Dockge will see (and own the top folder of) everything in it." ;;
-esac
 VERSION=$(ask "Dockge version" "$VERSION")
 
 # ---- 5. Write the new compose file (not applied yet) ---------------------------------------
@@ -157,17 +141,12 @@ trap 'rm -f "$new"' EXIT
     echo "    volumes:"
     echo "      - $(q "$SOCK_SRC:/var/run/docker.sock")"
     echo "      - $(q "$DATA_SRC:/app/data")"
-    case "$STACKS_DIR/" in
-        "$BIND_ROOT"/*) [ -n "$BIND_ROOT" ] || echo "      - $STACKS_DIR:$STACKS_DIR" ;;
-        *) echo "      - $STACKS_DIR:$STACKS_DIR" ;;
-    esac
-    [ -n "$BIND_ROOT" ] && echo "      - $BIND_ROOT:$BIND_ROOT"
+    echo "      - $STACKS_DIR:$STACKS_DIR"
     for m in "${extra_mounts[@]}"; do echo "      - $(q "$m")"; done
     echo "    environment:"
     echo "      - PUID=$PUID"
     echo "      - PGID=$PGID"
     echo "      - DOCKGE_STACKS_DIR=$STACKS_DIR"
-    [ -n "$BIND_ROOT" ] && echo "      - DOCKGE_BIND_ROOTS=$BIND_ROOT"
     for e in "${envs[@]}"; do echo "      - $(q "$e")"; done
     echo "    read_only: true"
     echo "    tmpfs:"

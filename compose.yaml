@@ -1,6 +1,6 @@
 services:
   dockge:
-    image: ghcr.io/darthrater78/dockge:2.4.1
+    image: ghcr.io/darthrater78/dockge:2.4.2
     restart: unless-stopped
     ports:
       - 5001:5001
@@ -46,11 +46,8 @@ services:
 # Optional, under environment:
 #   - TURNSTILE_SITE_KEY=... and - TURNSTILE_SECRET_KEY=...: CAPTCHA on login
 #   - DOCKGE_ALLOW_FRAMING=true: allow embedding in a dashboard iframe
-# Optional, opt-in: let Dockge create missing absolute bind-mount folders
-#   (such as /opt/docker/<app>) owned by PUID/PGID. This gives Dockge read and
-#   write access to every app's data in that folder, which it doesn't need
-#   otherwise. Without it, Docker creates those folders as root, as upstream.
-#   To opt in, replace the stacks line under volumes: with
-#     - /opt/docker:/opt/docker
-#   and add under environment:
-#     - DOCKGE_BIND_ROOTS=/opt/docker
+# Bind-mount folders outside the stacks folder (such as /opt/docker/<app>) are
+#   created by Docker, owned by root, as upstream. If the app runs as a regular
+#   user, create its folder first (mkdir -p, then chown).
+# Installed with the 2.4.0 or 2.4.1 quickstart (it mounted /opt/docker:/opt/docker)?
+#   See "Installed with the 2.4.0 or 2.4.1 quickstart?" in the README.

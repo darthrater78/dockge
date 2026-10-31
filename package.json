@@ -1,6 +1,6 @@
 {
     "name": "dockge",
-    "version": "2.4.1",
+    "version": "2.4.2",
     "repository": {
         "type": "git",
         "url": "https://github.com/darthrater78/dockge.git"
@@ -108,7 +108,8 @@
     "overrides": {
         "tar": "^7.5.22",
         "lodash": "^4.18.1",
-        "glob": "^10.5.0",
+        "glob": "^14.0.3",
+        "minimatch": "^11.0.3",
         "@tootallnate/once": "^2.0.0"
     }
 }
