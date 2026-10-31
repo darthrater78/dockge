@@ -693,6 +693,16 @@ The API communicates with remote agents via Socket.IO. Agents running pre-1.6.0 
 
 <a id="release-notes"></a>
 
+### 2.4.2 (unreleased)
+
+A dependency security update. The server's dependencies now audit clean; nothing changes in how Dockge works. Dev builds of this version are tagged `2.4.2-dev.<n>` and published as `ghcr.io/darthrater78/dockge:2.4.2-dev.<n>` for testing.
+
+**Security**
+- body-parser 2.3.0 → 2.4.0 (High): a denial of service from trailing bytes after a compressed request body. The JSON parser runs before the API-key check, so it was reachable without a key
+- fast-uri 3.1.9, ip-address 10.7.5, qs 6.17.1 (Moderate)
+- glob 14.0.3 and minimatch 11.0.3 through `overrides`, for the Moderate advisories in sqlite3, redbean-node and the lint tools
+- Accepted: GHSA-83rm-6c8r-g728 (High) in vue-i18n 10.0.8. It needs `escapeParameter` and translations rendered with `v-html`; Dockge uses neither. The fix needs vue-i18n 11
+
 ### 2.4.1 (2026-10-22)
 
 A security update. The image now runs Node.js 22.23.4. Nothing else changes: update the image tag (see [How to Update](#update)).
